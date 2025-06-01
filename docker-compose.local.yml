@@ -1,0 +1,39 @@
+version: "3.7"
+services:
+  templater-backend:
+    build: .
+    image: templater-backend
+    ports:
+      - "3053:3053"
+      #- "8546:8546" 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - templater-backend-data:/storage
+    env_file:
+      - docker.env
+    environment:
+    networks:
+      templater-backend-network:
+        aliases:
+          - templater-backend
+    
+  mongodb:
+    container_name: go-mongodb
+    image: mongo
+    # ports:
+    #   - "27017:27017"
+    volumes:
+      - templater-backend-mongo-data:/data/db
+    networks:
+      templater-backend-network:
+        aliases:
+          - go-mongodb
+      
+volumes:
+  templater-backend-data: 
+    # driver: local 
+  templater-backend-mongo-data:
+    # driver: local
+networks:
+  templater-backend-network:
