@@ -1,6 +1,8 @@
 package exelreader
 
 import (
+	"bytes"
+
 	"github.com/xuri/excelize/v2"
 )
 
@@ -17,12 +19,16 @@ func CreateFile() (exelFile, error) {
 	file := excelize.NewFile()
 	return newReader(file, ""), nil
 }
+
 func ReadFile(filePath string) (exelFile, error) {
 	file, err := excelize.OpenFile(filePath)
 	if err != nil {
 		return exelFile{}, err
 	}
 	return newReader(file, filePath), nil
+}
+func (e *exelFile) WriteBuffer() (*bytes.Buffer, error) {
+	return e.file.WriteToBuffer()
 }
 func (e *exelFile) Scan() error {
 	if e.isScanned {
