@@ -4,26 +4,32 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Router struct {
-	router *chi.Mux
+	router      *chi.Mux
+	fileStorage fileStorage
+	userStorage userStorage
+	jwtSecret   string
 }
 
-func NewRouter() *Router {
-
+func NewRouter(fileStorage fileStorage, userStorage userStorage, jwtSecret string) *Router {
 	return &Router{
-
-		router: chi.NewRouter(),
+		router:      chi.NewRouter(),
+		fileStorage: fileStorage,
+		userStorage: userStorage,
+		jwtSecret:   jwtSecret,
 	}
 }
 func (root *Router) Mount() {
 	root.router.Use(middleware.Logger)
 	//disable cors
-
+	root.router.Post("/api/user", root.CreateTempUser)
 	root.router.Route("/api", func(r chi.Router) {
+		r.Use(root.JWTMiddleware)
+		r.Post("/add", root.UploadFile)
 
 	})
 	root.router.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
