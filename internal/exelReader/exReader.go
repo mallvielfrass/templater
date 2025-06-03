@@ -3,6 +3,7 @@ package exelreader
 import (
 	"bytes"
 
+	"github.com/mallvielfrass/templater/internal/models"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -19,7 +20,17 @@ func CreateFile() (exelFile, error) {
 	file := excelize.NewFile()
 	return newReader(file, ""), nil
 }
+func ReadBuffer(path string, data []byte) (exelFile, error) {
+	// Преобразуем []byte в io.Reader
+	reader := bytes.NewReader(data)
 
+	file, err := excelize.OpenReader(reader)
+	if err != nil {
+		return exelFile{}, err
+	}
+	return newReader(file, path), nil
+
+}
 func ReadFile(filePath string) (exelFile, error) {
 	file, err := excelize.OpenFile(filePath)
 	if err != nil {
