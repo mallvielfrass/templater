@@ -4,21 +4,21 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-type sheet struct {
-	Name        string
-	StartColumn string
-	EndColumn   string
-	StartRow    int
-	EndRow      int
+// type Sheet struct {
+// 	Name        string
+// 	StartColumn string
+// 	EndColumn   string
+// 	StartRow    int
+// 	EndRow      int
 
-	// RowCount    int
-	// ColumnCount int
-}
-type fileInfo struct {
-	Sheets   []sheet
-	FileName string
-	//Size     int
-}
+// 	// RowCount    int
+// 	// ColumnCount int
+// }
+// type FileInfo struct {
+// 	Sheets   []Sheet
+// 	FileName string
+// 	//Size     int
+// }
 
 type exelFile struct {
 	file      *excelize.File

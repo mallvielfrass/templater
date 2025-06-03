@@ -3,6 +3,7 @@ package exelreader
 import (
 	"testing"
 
+	"github.com/mallvielfrass/templater/internal/utils/cell"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,7 +32,7 @@ func TestColumnNumber(t *testing.T) {
 	}
 	for _, test := range tests {
 
-		col := columnNumber(test.column)
+		col := cell.ColumnNumber(test.column)
 		assert.Equal(t, test.num, col)
 	}
 }

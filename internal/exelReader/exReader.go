@@ -45,18 +45,18 @@ func (e *exelFile) Scan() error {
 	}
 	return nil
 }
-func (e *exelFile) FileInfo() (fileInfo, error) {
-	var sheets []sheet
+func (e *exelFile) FileInfo() (models.FileInfo, error) {
+	var sheets []models.Sheet
 	sheetList := e.file.GetSheetList()
 	for _, sheetName := range sheetList {
 		sheet, err := e.SheetInfo(sheetName)
 		if err != nil {
-			return fileInfo{}, err
+			return models.FileInfo{}, err
 		}
 		sheets = append(sheets, sheet)
 	}
 	//size:= e.file.
-	return fileInfo{
+	return models.FileInfo{
 		FileName: e.name,
 		Sheets:   sheets,
 	}, nil

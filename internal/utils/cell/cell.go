@@ -1,4 +1,4 @@
-package exelreader
+package cell
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 
 //columnNumber преобразует буквенное обозначение в номер столбца
 
-func columnNumber(s string) int {
+func ColumnNumber(s string) int {
 	result := 0
 	for _, r := range s {
 		digit := int(r - 'A' + 1)
@@ -18,7 +18,7 @@ func columnNumber(s string) int {
 }
 
 // parseCell парсит ячейку в номер столбца и строку
-func parseCell(cell string) (string, int, error) {
+func ParseCell(cell string) (string, int, error) {
 	// Разделяем на буквенную и числовую части
 	letters := ""
 	number := ""
