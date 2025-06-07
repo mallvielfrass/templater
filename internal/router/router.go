@@ -12,14 +12,16 @@ type Router struct {
 	router      *chi.Mux
 	fileStorage fileStorage
 	userStorage userStorage
+	taskStorage taskStorage
 	jwtSecret   string
 }
 
-func NewRouter(fileStorage fileStorage, userStorage userStorage, jwtSecret string) *Router {
+func NewRouter(fileStorage fileStorage, userStorage userStorage, taskStorage taskStorage, jwtSecret string) *Router {
 	return &Router{
 		router:      chi.NewRouter(),
 		fileStorage: fileStorage,
 		userStorage: userStorage,
+		taskStorage: taskStorage,
 		jwtSecret:   jwtSecret,
 	}
 }
@@ -29,7 +31,7 @@ func (root *Router) Mount() {
 	root.router.Post("/api/user", root.CreateTempUser)
 	root.router.Route("/api", func(r chi.Router) {
 		r.Use(root.JWTMiddleware)
-		r.Post("/add", root.UploadFile)
+		r.Post("/create_task", root.CreateTask)
 
 	})
 	root.router.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
