@@ -56,6 +56,11 @@ type testStorage struct {
 	files map[string]testFile
 }
 
+// SaveDoc implements fileStorage.
+func (t *testStorage) SaveDoc(docBytes []byte) (hash string, err error) {
+	panic("unimplemented")
+}
+
 // GetDocFileData implements fileStorage.
 func (t *testStorage) GetDocFileData(hash string) (data []byte, err error) {
 	panic("unimplemented")

@@ -13,6 +13,7 @@ type fileStorage interface {
 	SaveDocFile(path string, data []byte) (hash string, err error)
 	GetDocFileInfo(hash string) (fileInfo models.FileInfo, err error)
 	GetDocFileData(hash string) (data []byte, err error)
+	SaveDoc(docBytes []byte) (hash string, err error)
 }
 type userStorage interface {
 	CreateTempUser() (token string)
