@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
+	exdocconverter "github.com/mallvielfrass/templater/internal/exdocConverter"
 	exelreader "github.com/mallvielfrass/templater/internal/exelReader"
 	"github.com/mallvielfrass/templater/internal/models"
-	"github.com/mallvielfrass/templater/internal/utils/cell"
 )
 
 func (root *Router) CreateTask(w http.ResponseWriter, req *http.Request) {
@@ -171,23 +171,6 @@ func (root *Router) RunTask(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Error reading the exel file", http.StatusInternalServerError)
 		return
 	}
-	// //get sheet
-	sheet, err := openExel.SheetInfo(sheetName)
-	if err != nil {
-		http.Error(w, "Error getting the sheet", http.StatusInternalServerError)
-		return
-	}
-	columns := []string{}
-	if !useFirstRowAsColumnsBool {
-		columns = cell.ColumnsCountToAddresses(sheet.GetColumnCount())
-	} else {
-		firstRow, err := openExel.ReadFirstRow(sheetName)
-		if err != nil {
-			http.Error(w, "Error getting the columns", http.StatusInternalServerError)
-			return
-		}
-		columns = firstRow
-	}
 	//get doc file
 	docData, err := root.fileStorage.GetDocFileData(task.DocHash)
 	if err != nil {
@@ -195,21 +178,37 @@ func (root *Router) RunTask(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	rows, err := openExel.ReadSheetRows(sheetName, minRowInt, maxRowInt)
+	// Создаем ExDocConverter
+	converter, err := exdocconverter.NewExDocConverter(root.fileStorage, &openExel, docData)
 	if err != nil {
-		http.Error(w, "Error reading the rows", http.StatusInternalServerError)
+		http.Error(w, "Error creating converter", http.StatusInternalServerError)
 		return
 	}
 
-	type doc map[string]string
-	documents := make([]doc, len(rows))
-	for i, row := range rows {
-		//convert to map[columnName]=value row
-		rowDataMap := make(map[string]string)
-		for i, column := range columns {
-			rowDataMap[column] = row[i]
-		}
-		documents[i] = rowDataMap
+	// Создаем опции конвертации
+	options, err := converter.CreateConvertOptions(sheetName, useFirstRowAsColumnsBool)
+	if err != nil {
+		http.Error(w, "Error creating convert options", http.StatusInternalServerError)
+		return
 	}
 
+	// Конвертируем документы
+	docHashes, err := converter.Convert(options, minRowInt, maxRowInt)
+	if err != nil {
+		http.Error(w, "Error converting documents", http.StatusInternalServerError)
+		return
+	}
+
+	// Возвращаем результат
+	response := map[string]interface{}{
+		"task_id":    taskID,
+		"doc_hashes": docHashes,
+		"total_docs": len(docHashes),
+	}
+
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, "Error encoding JSON response", http.StatusInternalServerError)
+		return
+	}
 }

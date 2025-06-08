@@ -7,8 +7,8 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-func newReader(file *excelize.File, name string) exelFile {
-	return exelFile{
+func newReader(file *excelize.File, name string) ExelFile {
+	return ExelFile{
 		file:      file,
 		name:      name,
 		sheets:    NewSyncSheetMap(),
@@ -16,32 +16,32 @@ func newReader(file *excelize.File, name string) exelFile {
 	}
 }
 
-func CreateFile() (exelFile, error) {
+func CreateFile() (ExelFile, error) {
 	file := excelize.NewFile()
 	return newReader(file, ""), nil
 }
-func ReadBuffer(path string, data []byte) (exelFile, error) {
+func ReadBuffer(path string, data []byte) (ExelFile, error) {
 	// Преобразуем []byte в io.Reader
 	reader := bytes.NewReader(data)
 
 	file, err := excelize.OpenReader(reader)
 	if err != nil {
-		return exelFile{}, err
+		return ExelFile{}, err
 	}
 	return newReader(file, path), nil
 
 }
-func ReadFile(filePath string) (exelFile, error) {
+func ReadFile(filePath string) (ExelFile, error) {
 	file, err := excelize.OpenFile(filePath)
 	if err != nil {
-		return exelFile{}, err
+		return ExelFile{}, err
 	}
 	return newReader(file, filePath), nil
 }
-func (e *exelFile) WriteBuffer() (*bytes.Buffer, error) {
+func (e *ExelFile) WriteBuffer() (*bytes.Buffer, error) {
 	return e.file.WriteToBuffer()
 }
-func (e *exelFile) Scan() error {
+func (e *ExelFile) Scan() error {
 	if e.isScanned {
 		return nil
 	}
@@ -56,7 +56,7 @@ func (e *exelFile) Scan() error {
 	}
 	return nil
 }
-func (e *exelFile) FileInfo() (models.FileInfo, error) {
+func (e *ExelFile) FileInfo() (models.FileInfo, error) {
 	var sheets []models.Sheet
 	sheetList := e.file.GetSheetList()
 	for _, sheetName := range sheetList {
