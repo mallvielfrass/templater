@@ -20,7 +20,7 @@ import (
 // 	//Size     int
 // }
 
-type exelFile struct {
+type ExelFile struct {
 	file      *excelize.File
 	name      string
 	isScanned bool

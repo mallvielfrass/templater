@@ -1,8 +1,14 @@
 package exelreader
 
-import "github.com/mallvielfrass/templater/internal/models"
+import (
+	"strconv"
+	"strings"
 
-func (e *exelFile) SheetInfo(sheetName string) (models.Sheet, error) {
+	"github.com/mallvielfrass/templater/internal/models"
+	"github.com/mallvielfrass/templater/internal/utils/cell"
+)
+
+func (e *ExelFile) SheetInfo(sheetName string) (models.Sheet, error) {
 	dimension, err := e.file.GetSheetDimension(sheetName)
 	if err != nil {
 		return models.Sheet{}, err
@@ -14,7 +20,8 @@ func (e *exelFile) SheetInfo(sheetName string) (models.Sheet, error) {
 	return parsedDimension, nil
 
 }
-func (e *exelFile) CreateSheet(sheetName string) error {
+
+func (e *ExelFile) CreateSheet(sheetName string) error {
 	_, err := e.file.NewSheet(sheetName)
 	if err != nil {
 		return err
