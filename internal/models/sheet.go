@@ -16,8 +16,8 @@ type Sheet struct {
 func (s *Sheet) GetColumnCount() int {
 	startColumn := cell.ColumnNumber(s.StartColumn)
 	endColumn := cell.ColumnNumber(s.EndColumn)
-	return startColumn - endColumn
+	return endColumn - startColumn + 1
 }
 func (s *Sheet) GetRowCount() int {
-	return s.EndRow - s.StartRow
+	return s.EndRow - s.StartRow + 1
 }
