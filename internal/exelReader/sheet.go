@@ -36,3 +36,52 @@ func (e *ExelFile) CreateSheet(sheetName string) error {
 	})
 	return nil
 }
+
+//	func (e *ExelFile) GetRow(sheetName string, row int) (map[string]string, error) {
+//		rowData, err := e.file.GetRows(sheetName)
+//		if err != nil {
+//			return nil, err
+//		}
+//		return rowData, nil
+//	}
+func (e *ExelFile) ReadFirstRow(sheetName string) ([]string, error) {
+	info, err := e.SheetInfo(sheetName)
+	if err != nil {
+		return nil, err
+	}
+	columnCount := info.GetColumnCount()
+	rowData := []string{}
+	for i := 1; i <= columnCount; i++ {
+		columnString := cell.ColumnChar(i)
+		cell := columnString + strconv.Itoa(1)
+		cellValue, err := e.file.GetCellValue(sheetName, cell)
+		if err != nil {
+			return nil, err
+		}
+		rowData = append(rowData, strings.TrimSpace(cellValue))
+	}
+	return rowData, nil
+}
+func (e *ExelFile) ReadSheetRows(sheetName string, minRow int, maxRow int) ([][]string, error) {
+	info, err := e.SheetInfo(sheetName)
+	if err != nil {
+		return nil, err
+	}
+	columnCount := info.GetColumnCount()
+
+	rows := [][]string{}
+	for row := minRow; row <= maxRow; row++ {
+		rowData := []string{}
+		for i := 1; i <= columnCount; i++ {
+			columnString := cell.ColumnChar(i)
+			cell := columnString + strconv.Itoa(row)
+			cellValue, err := e.file.GetCellValue(sheetName, cell)
+			if err != nil {
+				return nil, err
+			}
+			rowData = append(rowData, cellValue)
+		}
+		rows = append(rows, rowData)
+	}
+	return rows, nil
+}
