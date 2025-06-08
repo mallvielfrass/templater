@@ -102,3 +102,44 @@ func (s *ParseCellTestSuite) TestSingleCharacter() {
 func TestParseCellSuite(t *testing.T) {
 	suite.Run(t, new(ParseCellTestSuite))
 }
+func TestColumnChar(t *testing.T) {
+	tests := []struct {
+		input    int
+		expected string
+	}{
+		{1, "A"},
+		{2, "B"},
+		{26, "Z"},
+		{27, "AA"},
+		{28, "AB"},
+		{52, "AZ"},
+		{53, "BA"},
+		{701, "ZY"},
+		{702, "ZZ"},
+		{703, "AAA"},
+		{1000, "ALL"},
+	}
+
+	for _, tt := range tests {
+		result := ColumnChar(tt.input)
+		if result != tt.expected {
+			t.Errorf("ColumnChar(%d) = %s; want %s", tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestColumnsCountToAddresses(t *testing.T) {
+	tests := []struct {
+		input    int
+		expected []string
+	}{
+		{1, []string{"A"}},
+		{2, []string{"A", "B"}},
+		{26, []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}},
+		{27, []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "AA"}},
+	}
+	for _, tt := range tests {
+		result := ColumnsCountToAddresses(tt.input)
+		assert.Equal(t, tt.expected, result)
+	}
+}

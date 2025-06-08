@@ -16,6 +16,22 @@ func ColumnNumber(s string) int {
 	}
 	return result
 }
+func ColumnChar(n int) string {
+	result := ""
+	for n > 0 {
+		n-- // Важно!
+		result = string(rune('A'+(n%26))) + result
+		n /= 26
+	}
+	return result
+}
+func ColumnsCountToAddresses(count int) []string {
+	addresses := make([]string, count)
+	for i := range count {
+		addresses[i] = ColumnChar(i + 1)
+	}
+	return addresses
+}
 
 // parseCell парсит ячейку в номер столбца и строку
 func ParseCell(cell string) (string, int, error) {
