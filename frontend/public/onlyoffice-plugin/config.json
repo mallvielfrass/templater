@@ -1,0 +1,20 @@
+{
+  "name": "InsertColumn",
+  "guid": "asc.{D68097C2-7901-49BD-950E-1647893DA8A1}",
+  "baseUrl": "",
+  "variations": [
+    {
+      "description": "Insert Column Plugin",
+      "url": "index.html",
+      "icons": ["icon.png", "icon@2x.png"],
+      "isViewer": false,
+      "EditorsSupport": ["word"],
+      "isVisual": false,
+      "isSystem": true,
+      "type": "system",
+      "initDataType": "none",
+      "initData": "",
+      "buttons": []
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Insert Column Plugin</title>
+  <script type="text/javascript" src="./plugins.js"></script>
+</head>
+<body>
+  <script type="text/javascript">
+    (function() {
+      function pasteText(text) {
+        if (!window.Asc || !window.Asc.plugin) {
+          return;
+        }
+        if (typeof window.Asc.plugin.executeMethod === 'function') {
+          window.Asc.plugin.executeMethod('PasteText', [text]);
+        } else if (typeof window.Asc.plugin.callCommand === 'function') {
+          window.Asc.scope = window.Asc.scope || {};
+          window.Asc.scope.textToPaste = text;
+          window.Asc.plugin.callCommand(function() {
+            var oDocument = Api.GetDocument();
+            var oParagraph = Api.CreateParagraph();
+            oParagraph.AddText(Asc.scope.textToPaste);
+            oDocument.InsertContent([oParagraph]);
+          }, true);
+        }
+      }
+
+      window.Asc.plugin.init = function() {
+        var timer = null;
+
+        function announce() {
+          try {
+            var channel = new MessageChannel();
+            channel.port1.onmessage = function(e) {
+              if (e.data && e.data.type === 'templater:ack') {
+                if (timer) {
+                  clearInterval(timer);
+                  timer = null;
+                }
+              }
+              if (e.data && e.data.action === 'insertText') {
+                pasteText(e.data.text);
+              }
+            };
+            window.top.postMessage({ type: 'templater:plugin-ready' }, '*', [channel.port2]);
+          } catch (err) {
+            console.error('Failed to announce plugin readiness', err);
+          }
+        }
+
+        announce();
+        timer = setInterval(announce, 1000);
+
+        window.addEventListener('message', function(e) {
+          if (e.data && e.data.type === 'templater:ack') {
+            if (timer) {
+              clearInterval(timer);
+              timer = null;
+            }
+          }
+          if (e.data && e.data.type === 'templater:insert') {
+            pasteText(e.data.text);
+          }
+        });
+      };
+
+      window.Asc.plugin.button = function(id) {};
+    })();
+  </script>
+</body>
+</html>
