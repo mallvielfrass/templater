@@ -12,6 +12,7 @@ on:
 
 env:
   GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/templater-backend
+  OO_IMAGE: ghcr.io/${{ github.repository_owner }}/templater-onlyoffice
 
 jobs:
   build:
@@ -37,6 +38,14 @@ jobs:
             ${{ env.GHCR_IMAGE }}:latest
           build-args: |
             VITE_ONLYOFFICE_URL=${{ vars.VITE_ONLYOFFICE_URL || secrets.VITE_ONLYOFFICE_URL }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.onlyoffice
+          push: true
+          tags: |
+            ${{ env.OO_IMAGE }}:${{ github.sha }}
+            ${{ env.OO_IMAGE }}:latest
 
   deploy:
     if: github.event_name == 'workflow_dispatch'
@@ -62,6 +71,7 @@ jobs:
           fi
           {
             echo "GHCR_IMAGE=${GHCR_IMAGE}"
+            echo "OO_IMAGE=${OO_IMAGE}"
             echo "IMAGE_TAG=${IMAGE_TAG}"
             echo "JWTSecret=${JWTSecret}"
             echo "OnlyOfficeJWTSecret=${OnlyOfficeJWTSecret}"

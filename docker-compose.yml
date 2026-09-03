@@ -40,7 +40,7 @@ services:
       - onlyoffice
 
   onlyoffice:
-    image: onlyoffice/documentserver:8.3.3
+    image: ${OO_IMAGE:-ghcr.io/mallvielfrass/templater-onlyoffice}:${IMAGE_TAG:-latest}
     restart: on-failure:5
     environment:
       JWT_ENABLED: "true"
@@ -50,8 +50,6 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "${PUBLIC_HOST:-templater.jackodissea.ru}:host-gateway"
-    volumes:
-      - "./frontend/public/onlyoffice-plugin:/var/www/onlyoffice/documentserver/sdkjs-plugins/{D68097C2-7901-49BD-950E-1647893DA8A1}"
     networks:
       templater-backend-network:
         aliases:

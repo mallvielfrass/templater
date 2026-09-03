@@ -1,0 +1,2 @@
+FROM onlyoffice/documentserver:8.3.3
+COPY frontend/public/onlyoffice-plugin/ "/var/www/onlyoffice/documentserver/sdkjs-plugins/{D68097C2-7901-49BD-950E-1647893DA8A1}/"

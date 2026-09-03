@@ -22,7 +22,10 @@ services:
           - templater-backend
 
   onlyoffice:
-    image: onlyoffice/documentserver:8.3.3
+    build:
+      context: .
+      dockerfile: Dockerfile.onlyoffice
+    image: templater-onlyoffice
     container_name: templater-onlyoffice
     ports:
       - "8080:80"
