@@ -365,13 +365,25 @@ func applyOOClaims(cb *ooCallback, claims jwt.MapClaims) bool {
 	return cb.Key != ""
 }
 
-func ooDownloadPathAllowed(rawPath string) bool {
+func ooInternalDownloadPath(rawPath string) (string, bool) {
 	clean := path.Clean(rawPath)
-	if clean == "." || clean == "/" {
-		return false
+	clean = strings.TrimPrefix(clean, "/ds")
+	if clean == "." || clean == "/" || clean == "" {
+		return "", false
+	}
+	if !strings.HasPrefix(clean, "/") {
+		clean = "/" + clean
 	}
 	lower := strings.ToLower(clean)
-	return strings.HasPrefix(lower, "/cache/") || strings.HasPrefix(lower, "/download")
+	if strings.HasPrefix(lower, "/cache/") || strings.HasPrefix(lower, "/download") {
+		return clean, true
+	}
+	return "", false
+}
+
+func ooDownloadPathAllowed(rawPath string) bool {
+	_, ok := ooInternalDownloadPath(rawPath)
+	return ok
 }
 
 func (root *Router) downloadOOFile(rawURL string) ([]byte, error) {
@@ -382,9 +394,11 @@ func (root *Router) downloadOOFile(rawURL string) ([]byte, error) {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return nil, fmt.Errorf("invalid scheme")
 	}
-	if !ooDownloadPathAllowed(u.Path) {
+	internalPath, ok := ooInternalDownloadPath(u.Path)
+	if !ok {
 		return nil, fmt.Errorf("invalid path")
 	}
+	u.Path = internalPath
 	if root.ooInternalURL == "" {
 		return nil, fmt.Errorf("onlyoffice url is not set")
 	}

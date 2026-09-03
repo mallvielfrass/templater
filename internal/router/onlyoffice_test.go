@@ -53,7 +53,7 @@ func TestOOCallbackUsesJWTURLNotBody(t *testing.T) {
 	claims := jwt.MapClaims{
 		"key":    "doc-key",
 		"status": float64(2),
-		"url":    "http://onlyoffice/cache/files/ok.docx",
+		"url":    "https://templater.jackodissea.ru/ds/cache/files/ok.docx",
 	}
 	token, err := signMapClaims("oo-secret", claims)
 	require.NoError(t, err)
@@ -143,8 +143,14 @@ func TestCORSAllowlist(t *testing.T) {
 func TestDownloadPathTraversalRejected(t *testing.T) {
 	require.False(t, ooDownloadPathAllowed("/cache/../../command"))
 	require.False(t, ooDownloadPathAllowed("/command"))
+	require.False(t, ooDownloadPathAllowed("/ds/command"))
 	require.True(t, ooDownloadPathAllowed("/cache/files/a.docx"))
+	require.True(t, ooDownloadPathAllowed("/ds/cache/files/a.docx"))
 	require.True(t, ooDownloadPathAllowed("/download"))
+	require.True(t, ooDownloadPathAllowed("/ds/download"))
+	p, ok := ooInternalDownloadPath("/ds/cache/files/ok.docx")
+	require.True(t, ok)
+	require.Equal(t, "/cache/files/ok.docx", p)
 }
 
 func TestPluginIndexNotSPA(t *testing.T) {
