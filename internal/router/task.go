@@ -1,50 +1,94 @@
 package router
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
+	docreader "github.com/mallvielfrass/templater/internal/docReader"
 	exdocconverter "github.com/mallvielfrass/templater/internal/exdocConverter"
 	exelreader "github.com/mallvielfrass/templater/internal/exelReader"
 	"github.com/mallvielfrass/templater/internal/models"
 )
 
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func taskIDFrom(req *http.Request) string {
+	id := req.URL.Query().Get("task_id")
+	if id == "" {
+		id = req.Header.Get("task_id")
+	}
+	return id
+}
+
+func (root *Router) ownedTask(req *http.Request, taskID string) (models.Task, bool) {
+	if taskID == "" {
+		return models.Task{}, false
+	}
+	task, err := root.taskStorage.GetTask(taskID)
+	if err != nil || task.UserID != userFrom(req) {
+		return models.Task{}, false
+	}
+	return task, true
+}
+
 func (root *Router) CreateTask(w http.ResponseWriter, req *http.Request) {
-	userID := req.Header.Get("user_id")
+	userID := userFrom(req)
 	if userID == "" {
-		http.Error(w, "User ID is required", http.StatusBadRequest)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	// Разбор формы multipart/form-data
-	err := req.ParseMultipartForm(100 << 20) // 100 MB максимальный размер файла
+	err := req.ParseMultipartForm(100 << 20)
 	if err != nil {
 		http.Error(w, "Unable to parse form", http.StatusBadRequest)
 		return
 	}
-	//get exel file from multipart form
 	exelFile, exelHandler, err := req.FormFile("exel_file")
 	if err != nil {
 		http.Error(w, "Error retrieving the exel file", http.StatusBadRequest)
 		return
 	}
 	defer exelFile.Close()
-	//get doc file info
 	docFile, docHandler, err := req.FormFile("doc_file")
-	if err != nil {
+	var docData []byte
+	docName := "document.docx"
+	if errors.Is(err, http.ErrMissingFile) {
+		docData, err = docreader.EmptyBytes()
+		if err != nil {
+			http.Error(w, "Error creating the doc file", http.StatusInternalServerError)
+			return
+		}
+	} else if err != nil {
 		http.Error(w, "Error retrieving the doc file", http.StatusBadRequest)
 		return
+	} else {
+		defer docFile.Close()
+		docData, err = io.ReadAll(docFile)
+		if err != nil {
+			http.Error(w, "Error reading the doc file", http.StatusInternalServerError)
+			return
+		}
+		if docHandler.Filename != "" {
+			docName = docHandler.Filename
+		}
 	}
-	defer docFile.Close()
 
-	//create task
-	taskID, err := root.taskStorage.CreateTask(userID)
+	task, err := root.taskStorage.CreateTask(userID)
 	if err != nil {
 		http.Error(w, "Error creating the task", http.StatusInternalServerError)
 		return
 	}
-	//save exel file
 	exelData, err := io.ReadAll(exelFile)
 	if err != nil {
 		http.Error(w, "Error reading the exel file", http.StatusInternalServerError)
@@ -52,71 +96,63 @@ func (root *Router) CreateTask(w http.ResponseWriter, req *http.Request) {
 	}
 	hash, err := root.fileStorage.SaveExelFile(exelHandler.Filename, exelData)
 	if err != nil {
-		http.Error(w, "Error saving the exel file", http.StatusInternalServerError)
+		log.Printf("SaveExelFile: %v", err)
+		http.Error(w, "Error saving the exel file: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	//save doc file
-	docData, err := io.ReadAll(docFile)
-	if err != nil {
-		http.Error(w, "Error reading the doc file", http.StatusInternalServerError)
+	if err := root.fileStorage.BindOwner(hash, userID); err != nil {
+		http.Error(w, "Error binding the exel file", http.StatusInternalServerError)
 		return
 	}
-	docHash, err := root.fileStorage.SaveDocFile(docHandler.Filename, docData)
+	docHash, err := root.fileStorage.SaveDocFile(docName, docData)
 	if err != nil {
 		http.Error(w, "Error saving the doc file", http.StatusInternalServerError)
 		return
 	}
-	//add exel file hash to task
-	err = root.taskStorage.AddExelHash(taskID.ID, hash)
+	if err := root.fileStorage.BindOwner(docHash, userID); err != nil {
+		http.Error(w, "Error binding the doc file", http.StatusInternalServerError)
+		return
+	}
+	err = root.taskStorage.AddExelHash(task.ID, hash)
 	if err != nil {
 		http.Error(w, "Error adding the exel file hash to the task", http.StatusInternalServerError)
 		return
 	}
-	//add doc file hash to task
-	err = root.taskStorage.AddDocHash(taskID.ID, docHash)
+	err = root.taskStorage.AddDocHash(task.ID, docHash)
 	if err != nil {
 		http.Error(w, "Error adding the doc file hash to the task", http.StatusInternalServerError)
 		return
 	}
-	//get list of tables from exel file
 	exelInfo, err := root.fileStorage.GetExelFileInfo(hash)
 	if err != nil {
 		http.Error(w, "Error getting the exel file info", http.StatusInternalServerError)
 		return
 	}
-	type Response struct {
-		TaskID   string          `json:"task_id"`
-		ExelInfo models.FileInfo `json:"exel_info"`
-		DocInfo  models.FileInfo `json:"doc_info"`
-	}
-
-	response := Response{
-		TaskID:   taskID.ID,
-		ExelInfo: exelInfo,
-		//DocInfo:  docInfo,
-	}
-	err = json.NewEncoder(w).Encode(response)
+	docInfo, err := root.fileStorage.GetDocFileInfo(docHash)
 	if err != nil {
-		http.Error(w, "Error encoding JSON response", http.StatusInternalServerError)
+		http.Error(w, "Error getting the doc file info", http.StatusInternalServerError)
 		return
 	}
-	return
+	writeJSON(w, http.StatusOK, map[string]any{
+		"task_id":   task.ID,
+		"exel_info": exelInfo,
+		"doc_info":  docInfo,
+		"doc_hash":  docHash,
+	})
 }
 
-// Run task
 func (root *Router) RunTask(w http.ResponseWriter, req *http.Request) {
-	taskID := req.Header.Get("task_id")
-	if taskID == "" {
-		http.Error(w, "Task ID is required", http.StatusBadRequest)
+	taskID := taskIDFrom(req)
+	task, ok := root.ownedTask(req, taskID)
+	if !ok {
+		http.NotFound(w, req)
 		return
 	}
-	//get sheet name from query params
 	sheetName := req.URL.Query().Get("sheet_name")
 	if sheetName == "" {
 		http.Error(w, "Sheet name is required", http.StatusBadRequest)
 		return
 	}
-	//get param "use_first_row_as_columns"
 	useFirstRowAsColumns := req.URL.Query().Get("use_first_row_as_columns")
 	if useFirstRowAsColumns == "" {
 		http.Error(w, "Use first row as columns is required", http.StatusBadRequest)
@@ -127,7 +163,6 @@ func (root *Router) RunTask(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Invalid use first row as columns", http.StatusBadRequest)
 		return
 	}
-	//get min and max row from query params
 	minRow := req.URL.Query().Get("min_row")
 	maxRow := req.URL.Query().Get("max_row")
 	if minRow == "" || maxRow == "" {
@@ -153,62 +188,161 @@ func (root *Router) RunTask(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	//get task
-	task, err := root.taskStorage.GetTask(taskID)
-	if err != nil {
-		http.Error(w, "Error getting the task", http.StatusInternalServerError)
-		return
-	}
-	//get exel file
 	exelData, err := root.fileStorage.GetExelFileData(task.ExelHash)
 	if err != nil {
 		http.Error(w, "Error getting the exel file", http.StatusInternalServerError)
 		return
 	}
-	//read exel file
 	openExel, err := exelreader.ReadBuffer(task.ExelHash, exelData)
 	if err != nil {
 		http.Error(w, "Error reading the exel file", http.StatusInternalServerError)
 		return
 	}
-	//get doc file
+
+	_ = root.forceSaveTaskDocument(task.ID)
+	if updatedTask, err := root.taskStorage.GetTask(task.ID); err == nil {
+		task = updatedTask
+	}
+
 	docData, err := root.fileStorage.GetDocFileData(task.DocHash)
 	if err != nil {
 		http.Error(w, "Error getting the doc file", http.StatusInternalServerError)
 		return
 	}
 
-	// Создаем ExDocConverter
 	converter, err := exdocconverter.NewExDocConverter(root.fileStorage, &openExel, docData)
 	if err != nil {
 		http.Error(w, "Error creating converter", http.StatusInternalServerError)
 		return
 	}
 
-	// Создаем опции конвертации
 	options, err := converter.CreateConvertOptions(sheetName, useFirstRowAsColumnsBool)
 	if err != nil {
 		http.Error(w, "Error creating convert options", http.StatusInternalServerError)
 		return
 	}
 
-	// Конвертируем документы
 	docHashes, err := converter.Convert(options, minRowInt, maxRowInt)
 	if err != nil {
 		http.Error(w, "Error converting documents", http.StatusInternalServerError)
 		return
 	}
 
-	// Возвращаем результат
-	response := map[string]interface{}{
+	userID := userFrom(req)
+	for _, h := range docHashes {
+		if bindErr := root.fileStorage.BindOwner(h, userID); bindErr != nil {
+			http.Error(w, "Error binding generated file", http.StatusInternalServerError)
+			return
+		}
+	}
+	_ = root.taskStorage.UpdateTaskStatus(task.ID, models.StatusCompleted)
+
+	writeJSON(w, http.StatusOK, map[string]any{
 		"task_id":    taskID,
 		"doc_hashes": docHashes,
 		"total_docs": len(docHashes),
-	}
+	})
+}
 
-	err = json.NewEncoder(w).Encode(response)
-	if err != nil {
-		http.Error(w, "Error encoding JSON response", http.StatusInternalServerError)
+func (root *Router) Columns(w http.ResponseWriter, req *http.Request) {
+	task, ok := root.ownedTask(req, taskIDFrom(req))
+	if !ok {
+		http.NotFound(w, req)
 		return
 	}
+	sheetName := req.URL.Query().Get("sheet")
+	if sheetName == "" {
+		sheetName = req.URL.Query().Get("sheet_name")
+	}
+	if sheetName == "" {
+		http.Error(w, "Sheet name is required", http.StatusBadRequest)
+		return
+	}
+	exelData, err := root.fileStorage.GetExelFileData(task.ExelHash)
+	if err != nil {
+		http.NotFound(w, req)
+		return
+	}
+	exelReader, err := exelreader.ReadBuffer(task.ExelHash, exelData)
+	if err != nil {
+		http.Error(w, "Error reading the exel file", http.StatusInternalServerError)
+		return
+	}
+	columns, err := exelReader.ReadFirstRow(sheetName)
+	if err != nil {
+		http.Error(w, "Error reading columns", http.StatusInternalServerError)
+		return
+	}
+	out := make([]string, 0, len(columns))
+	for _, c := range columns {
+		name := strings.TrimSpace(c)
+		if name != "" {
+			out = append(out, name)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"columns": out, "sheet": sheetName})
+}
+
+func (root *Router) DownloadZip(w http.ResponseWriter, req *http.Request) {
+	user := userFrom(req)
+	if user == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var body struct {
+		Hashes []string `json:"hashes"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if len(body.Hashes) == 0 {
+		http.Error(w, "No hashes provided", http.StatusBadRequest)
+		return
+	}
+
+	buf := new(bytes.Buffer)
+	zw := zip.NewWriter(buf)
+
+	added := 0
+	for i, hash := range body.Hashes {
+		owner, err := root.fileStorage.OwnerOf(hash)
+		if err != nil || owner != user {
+			continue
+		}
+		data, err := root.fileStorage.GetAnyDocData(hash)
+		if err != nil {
+			continue
+		}
+		shortHash := hash
+		if len(shortHash) > 8 {
+			shortHash = shortHash[:8]
+		}
+		fileName := fmt.Sprintf("doc_%d_%s.docx", i+1, shortHash)
+		f, err := zw.Create(fileName)
+		if err != nil {
+			http.Error(w, "Error creating zip entry", http.StatusInternalServerError)
+			return
+		}
+		if _, err := f.Write(data); err != nil {
+			http.Error(w, "Error writing zip entry", http.StatusInternalServerError)
+			return
+		}
+		added++
+	}
+
+	if added == 0 {
+		http.Error(w, "No accessible files found", http.StatusNotFound)
+		return
+	}
+
+	if err := zw.Close(); err != nil {
+		http.Error(w, "Error closing zip", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"documents.zip\"")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(buf.Bytes())
 }
