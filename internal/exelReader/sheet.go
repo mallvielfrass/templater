@@ -17,8 +17,28 @@ func (e *ExelFile) SheetInfo(sheetName string) (models.Sheet, error) {
 	if err != nil {
 		return models.Sheet{}, err
 	}
-	return parsedDimension, nil
+	parsedDimension.Name = sheetName
 
+	rows, err := e.file.GetRows(sheetName)
+	if err == nil && len(rows) > 0 {
+		if len(rows) > parsedDimension.EndRow {
+			parsedDimension.EndRow = len(rows)
+		}
+		maxCols := 0
+		for _, r := range rows {
+			if len(r) > maxCols {
+				maxCols = len(r)
+			}
+		}
+		if maxCols > 0 {
+			endColNum := cell.ColumnNumber(parsedDimension.EndColumn)
+			if maxCols > endColNum {
+				parsedDimension.EndColumn = cell.ColumnChar(maxCols)
+			}
+		}
+	}
+
+	return parsedDimension, nil
 }
 
 func (e *ExelFile) CreateSheet(sheetName string) error {

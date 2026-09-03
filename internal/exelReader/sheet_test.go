@@ -36,3 +36,20 @@ func TestColumnNumber(t *testing.T) {
 		assert.Equal(t, test.num, col)
 	}
 }
+
+func TestSheetInfoWithRows(t *testing.T) {
+	file, err := CreateFile()
+	assert.NoError(t, err)
+	sheetName := "Sheet1"
+	_ = file.WriteCell(sheetName, "A1", "col1")
+	_ = file.WriteCell(sheetName, "B1", "col2")
+	_ = file.WriteCell(sheetName, "A2", "val1")
+	_ = file.WriteCell(sheetName, "B2", "val2")
+	_ = file.WriteCell(sheetName, "A3", "val3")
+	_ = file.WriteCell(sheetName, "B3", "val4")
+
+	info, err := file.SheetInfo(sheetName)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, info.EndRow)
+	assert.Equal(t, "B", info.EndColumn)
+}

@@ -97,8 +97,8 @@ func (e *ExDocConverter) Convert(options convertOptions, minRow int, maxRow int)
 			return nil, err
 		}
 
-		// Добавляем хеш в результат (используем реальный номер строки как ключ)
-		docHashes[minRow+i] = hash
+		// Добавляем хеш в результат
+		docHashes[i] = hash
 	}
 
 	return docHashes, nil

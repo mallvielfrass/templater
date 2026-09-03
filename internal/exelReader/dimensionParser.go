@@ -9,11 +9,26 @@ import (
 )
 
 func parseDimension(dimension string) (models.Sheet, error) {
+	dimension = strings.TrimSpace(dimension)
 	if dimension == "" {
-		return models.Sheet{}, errors.New("dimension is empty")
+		return models.Sheet{
+			StartColumn: "A",
+			EndColumn:   "A",
+			StartRow:    1,
+			EndRow:      1,
+		}, nil
 	}
 	if !strings.Contains(dimension, ":") {
-		return models.Sheet{}, errors.New("dimension is not valid")
+		startCol, startRow, err := cell.ParseCell(dimension)
+		if err != nil {
+			return models.Sheet{}, errors.New("dimension is not valid")
+		}
+		return models.Sheet{
+			StartColumn: startCol,
+			EndColumn:   startCol,
+			StartRow:    startRow,
+			EndRow:      startRow,
+		}, nil
 	}
 	parts := strings.Split(dimension, ":")
 	if len(parts) != 2 {

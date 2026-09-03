@@ -51,9 +51,21 @@ func (s *ParseDimensionTestSuite) TestLongColumnNames() {
 
 // Невалидные тесты
 func (s *ParseDimensionTestSuite) TestEmptyDimension() {
-	_, err := parseDimension("")
-	require.Error(s.T(), err)
-	assert.Equal(s.T(), "dimension is empty", err.Error())
+	sheet, err := parseDimension("")
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), "A", sheet.StartColumn)
+	assert.Equal(s.T(), "A", sheet.EndColumn)
+	assert.Equal(s.T(), 1, sheet.StartRow)
+	assert.Equal(s.T(), 1, sheet.EndRow)
+}
+
+func (s *ParseDimensionTestSuite) TestSingleCellNoColon() {
+	sheet, err := parseDimension("C5")
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), "C", sheet.StartColumn)
+	assert.Equal(s.T(), "C", sheet.EndColumn)
+	assert.Equal(s.T(), 5, sheet.StartRow)
+	assert.Equal(s.T(), 5, sheet.EndRow)
 }
 
 func (s *ParseDimensionTestSuite) TestNoColon() {
