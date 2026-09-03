@@ -187,6 +187,10 @@ func (root *Router) RunTask(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Min and max row must be greater than 0", http.StatusBadRequest)
 		return
 	}
+	if maxRowInt-minRowInt+1 > 100 {
+		http.Error(w, "Too many rows, max 100", http.StatusBadRequest)
+		return
+	}
 
 	exelData, err := root.fileStorage.GetExelFileData(task.ExelHash)
 	if err != nil {
