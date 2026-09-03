@@ -34,3 +34,5 @@ frontend/dist/
 # .idea/
 # .vscode/
 *.bin
+*.docx
+package-lock.json
