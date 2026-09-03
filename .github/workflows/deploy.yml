@@ -60,7 +60,6 @@ jobs:
             echo "JWTSecret or OnlyOfficeJWTSecret is empty (check Repository secrets, not Environment)"
             exit 1
           fi
-          umask 077
           {
             echo "GHCR_IMAGE=${GHCR_IMAGE}"
             echo "IMAGE_TAG=${IMAGE_TAG}"
@@ -71,6 +70,7 @@ jobs:
             echo "CORSOrigins=${CORSOrigins}"
             echo "HTTP_PORT=${HTTP_PORT}"
           } > deploy.env
+          chmod 644 deploy.env
       - uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ vars.PROD_HOST || secrets.PROD_HOST }}
