@@ -1,0 +1,62 @@
+version: "3.7"
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: on-failure:5
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - templater-backend
+      - onlyoffice
+    networks:
+      templater-backend-network:
+        aliases:
+          - nginx
+
+  templater-backend:
+    image: ${GHCR_IMAGE:-ghcr.io/mallvielfrass/templater-backend}:${IMAGE_TAG:-latest}
+    restart: on-failure:5
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - templater-backend-data:/storage
+    environment:
+      HttpPort: "3053"
+      BadgerDBPath: /storage/badger
+      JWTSecret: ${JWTSecret}
+      PublicBaseURL: ${PublicBaseURL:-http://templater-backend:3053}
+      OnlyOfficeJWTSecret: ${OnlyOfficeJWTSecret}
+      OnlyOfficeURL: ${OnlyOfficeURL:-http://onlyoffice}
+      CORSOrigins: ${CORSOrigins:-}
+      GO_ENV: production
+      StaticDir: /app/frontend/dist
+    networks:
+      templater-backend-network:
+        aliases:
+          - templater-backend
+    depends_on:
+      - onlyoffice
+
+  onlyoffice:
+    image: onlyoffice/documentserver:8.3.3
+    restart: on-failure:5
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${OnlyOfficeJWTSecret}
+      JWT_HEADER: Authorization
+      ALLOW_PRIVATE_IP_ADDRESS: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      templater-backend-network:
+        aliases:
+          - onlyoffice
+          - documentserver
+
+volumes:
+  templater-backend-data:
+
+networks:
+  templater-backend-network:

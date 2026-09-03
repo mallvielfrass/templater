@@ -1,38 +1,25 @@
-# Используем официальный образ Go
-FROM golang:1.23 AS builder
+FROM node:22-alpine AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+ARG VITE_ONLYOFFICE_URL=http://localhost:8080
+ENV VITE_ONLYOFFICE_URL=$VITE_ONLYOFFICE_URL
+RUN npm run build
 
-# Устанавливаем рабочую директорию
+FROM golang:1.24 AS builder
 WORKDIR /app
-
-# Копируем go.mod и go.sum в рабочую директорию
 COPY go.mod go.sum ./
-
-# Загружаем зависимости
 RUN go mod download
-
-# Копируем остальной исходный код
 COPY . .
+RUN go build -o main ./cmd/app
 
-# Собираем исполняемый файл
-RUN go build -o main ./cmd/app 
-
-# Второй этап: минимальный образ для запуска
 FROM ubuntu:22.04
-#-slim
-
-# Устанавливаем переменные окружения
 ENV GO_ENV=production \
-    PORT=8080
-
-# Устанавливаем рабочую директорию
+    StaticDir=/app/frontend/dist
 WORKDIR /app
-
-# Копируем исполняемый файл из предыдущего этапа
 COPY --from=builder /app/main .
-#install ca-certificates
-RUN apt-get update && apt-get install -y ca-certificates git  
-# Указываем порт, который используется приложением
+COPY --from=frontend /frontend/dist ./frontend/dist
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 EXPOSE 3053
-
-# Указываем команду для запуска
 CMD ["./main"]

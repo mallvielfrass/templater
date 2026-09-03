@@ -5,35 +5,41 @@ services:
     image: templater-backend
     ports:
       - "3053:3053"
-      #- "8546:8546" 
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - templater-backend-data:/storage
-    env_file:
-      - docker.env
     environment:
+      HttpPort: "3053"
+      BadgerDBPath: /storage/badger
+      JWTSecret: dev-jwt-secret-change-me
+      PublicBaseURL: http://templater-backend:3053
+      OnlyOfficeJWTSecret: onlyoffice-dev-secret
+      OnlyOfficeURL: http://onlyoffice
     networks:
       templater-backend-network:
         aliases:
           - templater-backend
-    
-  mongodb:
-    container_name: go-mongodb
-    image: mongo
-    # ports:
-    #   - "27017:27017"
-    volumes:
-      - templater-backend-mongo-data:/data/db
+
+  onlyoffice:
+    image: onlyoffice/documentserver:8.3.3
+    container_name: templater-onlyoffice
+    ports:
+      - "8080:80"
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: onlyoffice-dev-secret
+      JWT_HEADER: Authorization
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       templater-backend-network:
         aliases:
-          - go-mongodb
-      
+          - onlyoffice
+          - documentserver
+
 volumes:
-  templater-backend-data: 
-    # driver: local 
-  templater-backend-mongo-data:
-    # driver: local
+  templater-backend-data:
+
 networks:
   templater-backend-network:

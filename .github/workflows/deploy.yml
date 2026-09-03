@@ -1,0 +1,82 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to deploy
+        required: false
+        default: latest
+
+env:
+  GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/templater-backend
+
+jobs:
+  build:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.GHCR_IMAGE }}:${{ github.sha }}
+            ${{ env.GHCR_IMAGE }}:latest
+          build-args: |
+            VITE_ONLYOFFICE_URL=${{ secrets.VITE_ONLYOFFICE_URL }}
+
+  deploy:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          source: docker-compose.yml,nginx/nginx.conf
+          target: /home/${{ secrets.PROD_USER }}/templater
+      - uses: appleboy/ssh-action@v1.2.2
+        env:
+          GHCR_IMAGE: ${{ env.GHCR_IMAGE }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JWTSecret: ${{ secrets.JWTSecret }}
+          OnlyOfficeJWTSecret: ${{ secrets.OnlyOfficeJWTSecret }}
+          PublicBaseURL: ${{ secrets.PublicBaseURL }}
+          OnlyOfficeURL: ${{ secrets.OnlyOfficeURL }}
+          CORSOrigins: ${{ secrets.CORSOrigins }}
+          HTTP_PORT: ${{ secrets.HTTP_PORT }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          envs: GHCR_IMAGE,IMAGE_TAG,GHCR_USER,GHCR_TOKEN,JWTSecret,OnlyOfficeJWTSecret,PublicBaseURL,OnlyOfficeURL,CORSOrigins,HTTP_PORT
+          script: |
+            set -e
+            mkdir -p ~/templater
+            cd ~/templater
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            export GHCR_IMAGE IMAGE_TAG JWTSecret OnlyOfficeJWTSecret PublicBaseURL OnlyOfficeURL CORSOrigins HTTP_PORT
+            docker compose -f docker-compose.yml pull
+            docker compose -f docker-compose.yml up -d --remove-orphans --force-recreate
