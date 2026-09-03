@@ -147,6 +147,10 @@ func (f *fileStorage) IsTempUserExist(token string) bool {
 	return true
 }
 
+func (f *fileStorage) IsUserExist(token string) bool {
+	return f.IsTempUserExist(token)
+}
+
 // SaveDocFile сохраняет doc файл и возвращает его хеш
 func (f *fileStorage) SaveDocFile(path string, data []byte) (string, error) {
 	h := sha256.New()

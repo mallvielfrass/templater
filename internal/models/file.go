@@ -1,7 +1,7 @@
 package models
 
 type FileInfo struct {
-	Sheets   []Sheet
-	FileName string
-	Size     int
+	Sheets   []Sheet `json:"sheets"`
+	FileName string  `json:"file_name"`
+	Size     int     `json:"size"`
 }

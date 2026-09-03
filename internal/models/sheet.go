@@ -3,11 +3,11 @@ package models
 import "github.com/mallvielfrass/templater/internal/utils/cell"
 
 type Sheet struct {
-	Name        string
-	StartColumn string
-	EndColumn   string
-	StartRow    int
-	EndRow      int
+	Name        string `json:"name"`
+	StartColumn string `json:"start_column"`
+	EndColumn   string `json:"end_column"`
+	StartRow    int    `json:"start_row"`
+	EndRow      int    `json:"end_row"`
 
 	// RowCount    int
 	// ColumnCount int
