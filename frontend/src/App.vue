@@ -30,7 +30,7 @@ const generating = ref(false)
 const downloadingZip = ref(false)
 const error = ref('')
 const generated = ref<string[]>([])
-const editorRef = ref<{ insertPlaceholder: (name: string) => void } | null>(null)
+const editorRef = ref<{ insertPlaceholder: (name: string) => void | Promise<void> } | null>(null)
 const useFirstRow = ref(true)
 const rangeMin = ref(0)
 const rangeMax = ref(100)
@@ -160,9 +160,9 @@ async function onSheetChange(name: string) {
   }
 }
 
-function insertColumn(name: string) {
+async function insertColumn(name: string) {
   try {
-    editorRef.value?.insertPlaceholder(name)
+    await editorRef.value?.insertPlaceholder(name)
   } catch (e) {
     error.value = e instanceof Error ? e.message : String(e)
   }

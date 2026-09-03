@@ -201,10 +201,13 @@ onBeforeUnmount(() => {
 const ready = computed(() => Boolean(config.value) && editorVisible.value)
 
 defineExpose({
-  insertPlaceholder(name: string) {
+  async insertPlaceholder(name: string) {
     const text = '{' + name + '}'
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {}
     if (!pasteText(text)) {
-      throw new Error('Редактор ещё не готов')
+      throw new Error('Скопировано ' + text + '. Кликни в документ и нажми Ctrl+V')
     }
   },
 })
