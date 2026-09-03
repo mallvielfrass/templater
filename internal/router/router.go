@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -114,6 +115,8 @@ func (root *Router) Mount() {
 		r.Get("/onlyoffice/config", root.OnlyOfficeConfig)
 	})
 	root.router.Get("/onlyoffice-plugin-config.json", root.PluginConfig)
+	root.router.Get("/onlyoffice-plugin/config.json", root.PluginConfig)
+	root.router.Get("/onlyoffice-plugin-index.html", root.PluginIndex)
 	root.router.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
 	})
@@ -122,6 +125,30 @@ func (root *Router) Mount() {
 			w.Write([]byte("welcome"))
 		})
 	}
+}
+
+func (root *Router) servePluginStatic(w http.ResponseWriter, r *http.Request, fsPath string) {
+	full := filepath.Join(root.staticDir, filepath.FromSlash(fsPath))
+	st, err := os.Stat(full)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if st.IsDir() {
+		full = filepath.Join(full, "index.html")
+		st, err = os.Stat(full)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+	}
+	f, err := os.Open(full)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+	http.ServeContent(w, r, filepath.Base(full), st.ModTime(), f)
 }
 
 func (root *Router) mountStatic() bool {
@@ -139,9 +166,15 @@ func (root *Router) mountStatic() bool {
 			http.NotFound(w, r)
 			return
 		}
-		fsPath := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+		cleanURL := path.Clean(r.URL.Path)
+		pluginPath := strings.HasPrefix(cleanURL, "/onlyoffice-plugin")
+		fsPath := strings.TrimPrefix(cleanURL, "/")
 		if fsPath == "" {
 			fsPath = "index.html"
+		}
+		if pluginPath {
+			root.servePluginStatic(w, r, fsPath)
+			return
 		}
 		f, err := fileRoot.Open(fsPath)
 		if err != nil {

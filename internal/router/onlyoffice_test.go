@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -116,7 +118,7 @@ func TestOOConfigIgnoresPluginBaseURL(t *testing.T) {
 	r.router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.NotContains(t, rr.Body.String(), "evil.example")
-	require.Contains(t, rr.Body.String(), "https://app.example/onlyoffice-plugin-config.json")
+	require.Contains(t, rr.Body.String(), "https://app.example/onlyoffice-plugin/config.json")
 	require.Contains(t, rr.Body.String(), `"chat":false`)
 }
 
@@ -143,4 +145,24 @@ func TestDownloadPathTraversalRejected(t *testing.T) {
 	require.False(t, ooDownloadPathAllowed("/command"))
 	require.True(t, ooDownloadPathAllowed("/cache/files/a.docx"))
 	require.True(t, ooDownloadPathAllowed("/download"))
+}
+
+func TestPluginIndexNotSPA(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "index.html"), []byte("vue-spa"), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "onlyoffice-plugin"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "onlyoffice-plugin", "index.html"), []byte("Insert Column Plugin"), 0o644))
+
+	r := NewRouter(&testStorage{}, &testUserStorage{users: map[string]bool{}}, nil, "jwt", "https://app.example", "oo", "http://oo")
+	r.SetStaticDir(dir)
+	r.Mount()
+
+	for _, path := range []string{"/onlyoffice-plugin-index.html", "/onlyoffice-plugin/index.html"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rr := httptest.NewRecorder()
+		r.router.ServeHTTP(rr, req)
+		require.Equal(t, http.StatusOK, rr.Code, path)
+		require.Contains(t, rr.Body.String(), "Insert Column Plugin", path)
+		require.NotContains(t, rr.Body.String(), "vue-spa", path)
+	}
 }

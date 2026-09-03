@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -116,7 +118,7 @@ func (root *Router) OnlyOfficeConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	fileURL := fmt.Sprintf("%s/api/files/%s?token=%s", root.publicBaseURL, task.DocHash, url.QueryEscape(fileToken))
 	callbackURL := root.publicBaseURL + "/api/onlyoffice/callback"
-	pluginConfigURL := root.pluginBaseURL(r) + "/onlyoffice-plugin-config.json"
+	pluginConfigURL := root.pluginBaseURL(r) + "/onlyoffice-plugin/config.json"
 
 	document := map[string]any{
 		"fileType": "docx",
@@ -244,7 +246,7 @@ func (root *Router) PluginConfig(w http.ResponseWriter, r *http.Request) {
 		"variations": []map[string]any{
 			{
 				"description":    "Insert Column Plugin",
-				"url":            "index.html",
+				"url":            base + "index.html",
 				"icons":          []string{"icon.png", "icon@2x.png"},
 				"isViewer":       false,
 				"EditorsSupport": []string{"word"},
@@ -256,6 +258,30 @@ func (root *Router) PluginConfig(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	})
+}
+
+func (root *Router) PluginIndex(w http.ResponseWriter, r *http.Request) {
+	if root.staticDir == "" {
+		http.NotFound(w, r)
+		return
+	}
+	p := filepath.Join(root.staticDir, "onlyoffice-plugin", "index.html")
+	if _, err := os.Stat(p); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeContent(w, r, "index.html", st.ModTime(), f)
 }
 
 func requestPublicBase(r *http.Request) string {
