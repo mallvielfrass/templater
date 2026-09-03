@@ -246,7 +246,7 @@ func (root *Router) PluginConfig(w http.ResponseWriter, r *http.Request) {
 		"variations": []map[string]any{
 			{
 				"description":    "Insert Column Plugin",
-				"url":            base + "index.html",
+				"url":            "index.html",
 				"icons":          []string{"icon.png", "icon@2x.png"},
 				"isViewer":       false,
 				"EditorsSupport": []string{"word"},
