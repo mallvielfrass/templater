@@ -46,37 +46,55 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v4
-      - uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ vars.PROD_HOST || secrets.PROD_HOST }}
-          username: ${{ vars.PROD_USER || secrets.PROD_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}
-          source: docker-compose.yml,nginx/nginx.conf
-          target: /home/${{ vars.PROD_USER || secrets.PROD_USER }}/templater
-      - uses: appleboy/ssh-action@v1.2.2
+      - name: Write compose env
         env:
-          GHCR_IMAGE: ${{ env.GHCR_IMAGE }}
           IMAGE_TAG: ${{ github.event.inputs.image_tag }}
-          GHCR_USER: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JWTSecret: ${{ secrets.JWTSecret }}
           OnlyOfficeJWTSecret: ${{ secrets.OnlyOfficeJWTSecret }}
           PublicBaseURL: ${{ vars.PublicBaseURL || secrets.PublicBaseURL }}
           OnlyOfficeURL: ${{ vars.OnlyOfficeURL || secrets.OnlyOfficeURL }}
           CORSOrigins: ${{ vars.CORSOrigins || secrets.CORSOrigins }}
           HTTP_PORT: ${{ vars.HTTP_PORT || secrets.HTTP_PORT }}
+        run: |
+          if [ -z "$JWTSecret" ] || [ -z "$OnlyOfficeJWTSecret" ]; then
+            echo "JWTSecret or OnlyOfficeJWTSecret is empty (check Repository secrets, not Environment)"
+            exit 1
+          fi
+          umask 077
+          {
+            echo "GHCR_IMAGE=${GHCR_IMAGE}"
+            echo "IMAGE_TAG=${IMAGE_TAG}"
+            echo "JWTSecret=${JWTSecret}"
+            echo "OnlyOfficeJWTSecret=${OnlyOfficeJWTSecret}"
+            echo "PublicBaseURL=${PublicBaseURL}"
+            echo "OnlyOfficeURL=${OnlyOfficeURL}"
+            echo "CORSOrigins=${CORSOrigins}"
+            echo "HTTP_PORT=${HTTP_PORT}"
+          } > deploy.env
+      - uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ vars.PROD_HOST || secrets.PROD_HOST }}
           username: ${{ vars.PROD_USER || secrets.PROD_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}
-          envs: GHCR_IMAGE,IMAGE_TAG,GHCR_USER,GHCR_TOKEN,JWTSecret,OnlyOfficeJWTSecret,PublicBaseURL,OnlyOfficeURL,CORSOrigins,HTTP_PORT
+          source: docker-compose.yml,nginx/nginx.conf,deploy.env
+          target: /home/${{ vars.PROD_USER || secrets.PROD_USER }}/templater
+      - uses: appleboy/ssh-action@v1.2.2
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ vars.PROD_HOST || secrets.PROD_HOST }}
+          username: ${{ vars.PROD_USER || secrets.PROD_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}
+          envs: GHCR_USER,GHCR_TOKEN
           script: |
             set -e
             mkdir -p ~/templater
             cd ~/templater
+            mv -f deploy.env .env
+            chmod 600 .env
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            export GHCR_IMAGE IMAGE_TAG JWTSecret OnlyOfficeJWTSecret PublicBaseURL OnlyOfficeURL CORSOrigins HTTP_PORT
-            docker compose -f docker-compose.yml pull
-            docker compose -f docker-compose.yml up -d --remove-orphans --force-recreate
+            docker compose --env-file .env pull
+            docker compose --env-file .env up -d --remove-orphans --force-recreate
