@@ -36,7 +36,7 @@ jobs:
             ${{ env.GHCR_IMAGE }}:${{ github.sha }}
             ${{ env.GHCR_IMAGE }}:latest
           build-args: |
-            VITE_ONLYOFFICE_URL=${{ secrets.VITE_ONLYOFFICE_URL }}
+            VITE_ONLYOFFICE_URL=${{ vars.VITE_ONLYOFFICE_URL || secrets.VITE_ONLYOFFICE_URL }}
 
   deploy:
     if: github.event_name == 'workflow_dispatch'
@@ -48,12 +48,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
+          host: ${{ vars.PROD_HOST || secrets.PROD_HOST }}
+          username: ${{ vars.PROD_USER || secrets.PROD_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || '22' }}
+          port: ${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}
           source: docker-compose.yml,nginx/nginx.conf
-          target: /home/${{ secrets.PROD_USER }}/templater
+          target: /home/${{ vars.PROD_USER || secrets.PROD_USER }}/templater
       - uses: appleboy/ssh-action@v1.2.2
         env:
           GHCR_IMAGE: ${{ env.GHCR_IMAGE }}
@@ -62,15 +62,15 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JWTSecret: ${{ secrets.JWTSecret }}
           OnlyOfficeJWTSecret: ${{ secrets.OnlyOfficeJWTSecret }}
-          PublicBaseURL: ${{ secrets.PublicBaseURL }}
-          OnlyOfficeURL: ${{ secrets.OnlyOfficeURL }}
-          CORSOrigins: ${{ secrets.CORSOrigins }}
-          HTTP_PORT: ${{ secrets.HTTP_PORT }}
+          PublicBaseURL: ${{ vars.PublicBaseURL || secrets.PublicBaseURL }}
+          OnlyOfficeURL: ${{ vars.OnlyOfficeURL || secrets.OnlyOfficeURL }}
+          CORSOrigins: ${{ vars.CORSOrigins || secrets.CORSOrigins }}
+          HTTP_PORT: ${{ vars.HTTP_PORT || secrets.HTTP_PORT }}
         with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
+          host: ${{ vars.PROD_HOST || secrets.PROD_HOST }}
+          username: ${{ vars.PROD_USER || secrets.PROD_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || '22' }}
+          port: ${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}
           envs: GHCR_IMAGE,IMAGE_TAG,GHCR_USER,GHCR_TOKEN,JWTSecret,OnlyOfficeJWTSecret,PublicBaseURL,OnlyOfficeURL,CORSOrigins,HTTP_PORT
           script: |
             set -e
