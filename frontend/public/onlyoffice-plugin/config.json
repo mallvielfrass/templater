@@ -10,8 +10,7 @@
       "isViewer": false,
       "EditorsSupport": ["word"],
       "isVisual": false,
-      "isSystem": true,
-      "type": "system",
+      "isSystem": false,
       "initDataType": "none",
       "initData": "",
       "buttons": []

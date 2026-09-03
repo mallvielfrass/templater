@@ -113,6 +113,7 @@ func (root *Router) Mount() {
 		r.Get("/sheet_info", root.SheetInfo)
 		r.Get("/onlyoffice/config", root.OnlyOfficeConfig)
 	})
+	root.router.Get("/onlyoffice-plugin-config.json", root.PluginConfig)
 	root.router.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
 	})

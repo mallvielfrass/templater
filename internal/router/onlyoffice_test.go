@@ -116,7 +116,7 @@ func TestOOConfigIgnoresPluginBaseURL(t *testing.T) {
 	r.router.ServeHTTP(rr, req)
 	require.Equal(t, http.StatusOK, rr.Code)
 	require.NotContains(t, rr.Body.String(), "evil.example")
-	require.Contains(t, rr.Body.String(), "https://app.example/onlyoffice-plugin/config.json")
+	require.Contains(t, rr.Body.String(), "https://app.example/onlyoffice-plugin-config.json")
 	require.Contains(t, rr.Body.String(), `"chat":false`)
 }
 

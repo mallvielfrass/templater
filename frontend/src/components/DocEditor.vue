@@ -30,15 +30,77 @@ function destroyEditor() {
   }
 }
 
-function grabConnector() {
-  const instances = window.DocEditor?.instances
-  if (!instances) {
-    return
+function editorInstances(): Record<string, { createConnector?: () => Connector; executeMethod?: Connector['executeMethod'] }> {
+  const w = window as Window & {
+    DocEditor?: { instances?: Record<string, { createConnector?: () => Connector; executeMethod?: Connector['executeMethod'] }> }
+    DocsAPI?: { DocEditor?: { instances?: Record<string, { createConnector?: () => Connector; executeMethod?: Connector['executeMethod'] }> } }
   }
+  return { ...(w.DocEditor?.instances ?? {}), ...(w.DocsAPI?.DocEditor?.instances ?? {}) }
+}
+
+function grabConnector() {
+  const instances = editorInstances()
   const instance = instances[editorId] ?? Object.values(instances).find(Boolean)
   if (instance?.createConnector) {
     connector.value = instance.createConnector()
   }
+}
+
+function findFrameApi(w: Window, depth = 0): Connector | null {
+  if (depth > 10) {
+    return null
+  }
+  try {
+    const plugin = (w as Window & { Asc?: { plugin?: Connector } }).Asc?.plugin
+    if (plugin && typeof plugin.executeMethod === 'function') {
+      return plugin
+    }
+  } catch {}
+  try {
+    for (let i = 0; i < w.frames.length; i++) {
+      const found = findFrameApi(w.frames[i], depth + 1)
+      if (found) {
+        return found
+      }
+    }
+  } catch {}
+  return null
+}
+
+function pasteText(text: string): boolean {
+  if (pluginPort) {
+    pluginPort.postMessage({ action: 'insertText', text })
+    return true
+  }
+  if (!connector.value) {
+    grabConnector()
+  }
+  if (connector.value) {
+    connector.value.executeMethod('PasteText', [text])
+    return true
+  }
+  for (const inst of Object.values(editorInstances())) {
+    if (inst?.createConnector) {
+      try {
+        inst.createConnector().executeMethod('PasteText', [text])
+        return true
+      } catch {}
+    }
+    if (typeof inst?.executeMethod === 'function') {
+      inst.executeMethod('PasteText', [text])
+      return true
+    }
+  }
+  const frameApi = findFrameApi(window)
+  if (frameApi) {
+    frameApi.executeMethod('PasteText', [text])
+    return true
+  }
+  if (pluginReady.value) {
+    broadcastInsert(text)
+    return true
+  }
+  return false
 }
 
 function onDocumentReady() {
@@ -141,22 +203,9 @@ const ready = computed(() => Boolean(config.value) && editorVisible.value)
 defineExpose({
   insertPlaceholder(name: string) {
     const text = '{' + name + '}'
-    if (pluginPort) {
-      pluginPort.postMessage({ action: 'insertText', text })
-      return
+    if (!pasteText(text)) {
+      throw new Error('Редактор ещё не готов')
     }
-    if (!connector.value) {
-      grabConnector()
-    }
-    if (connector.value) {
-      connector.value.executeMethod('PasteText', [text])
-      return
-    }
-    if (pluginReady.value) {
-      broadcastInsert(text)
-      return
-    }
-    throw new Error('Редактор ещё не готов')
   },
 })
 </script>
@@ -178,6 +227,7 @@ defineExpose({
       :config="config"
       height="100%"
       :events_onDocumentReady="onDocumentReady"
+      :events_onAppReady="onDocumentReady"
     />
     <div
       v-else-if="!error"

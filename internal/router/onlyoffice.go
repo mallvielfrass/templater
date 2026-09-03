@@ -116,7 +116,7 @@ func (root *Router) OnlyOfficeConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	fileURL := fmt.Sprintf("%s/api/files/%s?token=%s", root.publicBaseURL, task.DocHash, url.QueryEscape(fileToken))
 	callbackURL := root.publicBaseURL + "/api/onlyoffice/callback"
-	pluginConfigURL := root.pluginBaseURL(r) + "/onlyoffice-plugin/config.json"
+	pluginConfigURL := root.pluginBaseURL(r) + "/onlyoffice-plugin-config.json"
 
 	document := map[string]any{
 		"fileType": "docx",
@@ -233,6 +233,29 @@ func (root *Router) OnlyOfficeCallback(w http.ResponseWriter, r *http.Request) {
 		root.notifySaveWaiters(cb.Key)
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"error": 0})
+}
+
+func (root *Router) PluginConfig(w http.ResponseWriter, r *http.Request) {
+	base := root.pluginBaseURL(r) + "/onlyoffice-plugin/"
+	writeJSON(w, http.StatusOK, map[string]any{
+		"name":    "InsertColumn",
+		"guid":    insertColumnPlugin,
+		"baseUrl": base,
+		"variations": []map[string]any{
+			{
+				"description":    "Insert Column Plugin",
+				"url":            "index.html",
+				"icons":          []string{"icon.png", "icon@2x.png"},
+				"isViewer":       false,
+				"EditorsSupport": []string{"word"},
+				"isVisual":       false,
+				"isSystem":       false,
+				"initDataType":   "none",
+				"initData":       "",
+				"buttons":        []any{},
+			},
+		},
+	})
 }
 
 func requestPublicBase(r *http.Request) string {
