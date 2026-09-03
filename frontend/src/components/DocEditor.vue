@@ -36,6 +36,12 @@ function grabConnector() {
   }
 }
 
+function onDocumentReady() {
+  grabConnector()
+  window.setTimeout(grabConnector, 500)
+  window.setTimeout(grabConnector, 2000)
+}
+
 function onWindowMessage(e: MessageEvent) {
   if (e.data?.type === 'templater:plugin-ready' && e.ports?.[0]) {
     if (pluginPort) {
@@ -134,7 +140,7 @@ defineExpose({
       :document-server-url="documentServerUrl"
       :config="config"
       height="100%"
-      :events_onDocumentReady="grabConnector"
+      :events_onDocumentReady="onDocumentReady"
     />
     <div
       v-else-if="!error"

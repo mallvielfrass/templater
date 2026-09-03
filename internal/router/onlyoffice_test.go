@@ -109,6 +109,8 @@ func TestOOConfigIgnoresPluginBaseURL(t *testing.T) {
 
 	token := generateJWT("jwt-secret", "user-1")
 	req := httptest.NewRequest(http.MethodGet, "/api/onlyoffice/config?task_id=task-1&plugin_base_url=https://evil.example", nil)
+	req.Host = "app.example"
+	req.Header.Set("X-Forwarded-Proto", "https")
 	req.Header.Set("Authorization", "Bearer "+token)
 	rr := httptest.NewRecorder()
 	r.router.ServeHTTP(rr, req)

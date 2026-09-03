@@ -116,7 +116,7 @@ func (root *Router) OnlyOfficeConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	fileURL := fmt.Sprintf("%s/api/files/%s?token=%s", root.publicBaseURL, task.DocHash, url.QueryEscape(fileToken))
 	callbackURL := root.publicBaseURL + "/api/onlyoffice/callback"
-	pluginConfigURL := root.publicBaseURL + "/onlyoffice-plugin/config.json"
+	pluginConfigURL := root.pluginBaseURL(r) + "/onlyoffice-plugin/config.json"
 
 	document := map[string]any{
 		"fileType": "docx",
@@ -233,6 +233,42 @@ func (root *Router) OnlyOfficeCallback(w http.ResponseWriter, r *http.Request) {
 		root.notifySaveWaiters(cb.Key)
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"error": 0})
+}
+
+func requestPublicBase(r *http.Request) string {
+	proto := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Proto"), ",")[0])
+	host := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Host"), ",")[0])
+	if host == "" {
+		host = r.Host
+	}
+	if host == "" {
+		return ""
+	}
+	if proto == "" {
+		if r.TLS != nil {
+			proto = "https"
+		} else {
+			proto = "http"
+		}
+	}
+	return stringsTrimSlash(proto + "://" + host)
+}
+
+func isDockerInternalBase(base string) bool {
+	u, err := url.Parse(base)
+	if err != nil {
+		return true
+	}
+	h := strings.ToLower(u.Hostname())
+	return h == "templater-backend" || h == "onlyoffice" || h == "nginx" ||
+		h == "localhost" || h == "127.0.0.1" || strings.HasSuffix(h, ".internal")
+}
+
+func (root *Router) pluginBaseURL(r *http.Request) string {
+	if b := requestPublicBase(r); b != "" && !isDockerInternalBase(b) {
+		return b
+	}
+	return root.publicBaseURL
 }
 
 func (root *Router) parseOOCallback(r *http.Request, body []byte) (ooCallback, bool) {
