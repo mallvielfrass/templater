@@ -49,6 +49,9 @@ services:
       ALLOW_PRIVATE_IP_ADDRESS: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "${PUBLIC_HOST:-templater.jackodissea.ru}:host-gateway"
+    volumes:
+      - "./frontend/public/onlyoffice-plugin:/var/www/onlyoffice/documentserver/sdkjs-plugins/{D68097C2-7901-49BD-950E-1647893DA8A1}"
     networks:
       templater-backend-network:
         aliases:

@@ -77,7 +77,7 @@ jobs:
           username: ${{ vars.PROD_USER || secrets.PROD_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ vars.SSH_PORT || secrets.SSH_PORT || '22' }}
-          source: docker-compose.yml,nginx/nginx.conf,deploy.env
+          source: docker-compose.yml,nginx/nginx.conf,deploy.env,frontend/public/onlyoffice-plugin
           target: /home/${{ vars.PROD_USER || secrets.PROD_USER }}/templater
       - uses: appleboy/ssh-action@v1.2.2
         env:

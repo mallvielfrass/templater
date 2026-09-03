@@ -19,6 +19,7 @@ const config = ref<IConfig | null>(null)
 const error = ref('')
 const connector = ref<Connector | null>(null)
 let pluginPort: MessagePort | null = null
+const pluginReady = ref(false)
 const editorVisible = ref(false)
 
 function destroyEditor() {
@@ -30,7 +31,11 @@ function destroyEditor() {
 }
 
 function grabConnector() {
-  const instance = window.DocEditor?.instances?.[editorId]
+  const instances = window.DocEditor?.instances
+  if (!instances) {
+    return
+  }
+  const instance = instances[editorId] ?? Object.values(instances).find(Boolean)
   if (instance?.createConnector) {
     connector.value = instance.createConnector()
   }
@@ -42,8 +47,32 @@ function onDocumentReady() {
   window.setTimeout(grabConnector, 2000)
 }
 
+function broadcastInsert(text: string) {
+  const msg = { type: 'templater:insert', text }
+  const walk = (w: Window) => {
+    try {
+      w.postMessage(msg, '*')
+    } catch {}
+    try {
+      for (let i = 0; i < w.frames.length; i++) {
+        walk(w.frames[i])
+      }
+    } catch {}
+  }
+  walk(window)
+  document.querySelectorAll('iframe').forEach((el) => {
+    if (el.contentWindow) {
+      walk(el.contentWindow)
+    }
+  })
+}
+
 function onWindowMessage(e: MessageEvent) {
-  if (e.data?.type === 'templater:plugin-ready' && e.ports?.[0]) {
+  if (e.data?.type !== 'templater:plugin-ready') {
+    return
+  }
+  pluginReady.value = true
+  if (e.ports?.[0]) {
     if (pluginPort) {
       try {
         pluginPort.close()
@@ -52,6 +81,9 @@ function onWindowMessage(e: MessageEvent) {
     pluginPort = e.ports[0]
     pluginPort.postMessage({ type: 'templater:ack' })
   }
+  try {
+    ;(e.source as Window | null)?.postMessage({ type: 'templater:ack' }, '*')
+  } catch {}
 }
 
 onMounted(() => {
@@ -61,6 +93,7 @@ onMounted(() => {
 async function loadConfig() {
   error.value = ''
   connector.value = null
+  pluginReady.value = false
   editorVisible.value = false
   if (pluginPort) {
     try {
@@ -117,6 +150,10 @@ defineExpose({
     }
     if (connector.value) {
       connector.value.executeMethod('PasteText', [text])
+      return
+    }
+    if (pluginReady.value) {
+      broadcastInsert(text)
       return
     }
     throw new Error('Редактор ещё не готов')
