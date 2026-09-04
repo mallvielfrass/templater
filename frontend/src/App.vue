@@ -115,6 +115,18 @@ async function onXlsxChange(value: File | File[] | null) {
   }
 }
 
+function goBack() {
+  error.value = ''
+  generated.value = []
+  xlsx.value = null
+  docx.value = null
+  newDoc.value = false
+  if (docxInput.value) {
+    docxInput.value.value = ''
+  }
+  session.clearTask()
+}
+
 async function onUpload() {
   error.value = ''
   generated.value = []
@@ -254,13 +266,12 @@ async function downloadAllZip() {
     </v-app-bar>
     <v-main>
       <div
-        class="d-flex pa-6"
+        class="workspace d-flex flex-column flex-md-row pa-3 pa-md-6 pa-xl-8"
         :class="session.taskId ? 'align-start' : 'align-center justify-center'"
-        style="min-height: calc(100% - 24px)"
       >
         <v-card
-          class="pa-6"
-          :width="session.taskId ? 360 : 420"
+          class="form-card pa-6"
+          :class="session.taskId ? 'form-card--task' : 'form-card--start'"
           variant="outlined"
         >
           <v-alert
@@ -273,76 +284,88 @@ async function downloadAllZip() {
           >
             {{ error }}
           </v-alert>
-          <v-file-input
-            v-model="xlsx"
-            label="xlsx"
-            accept=".xlsx"
-            density="compact"
-            prepend-icon="mdi-table"
-            show-size
-            @update:model-value="onXlsxChange"
-          />
-          <v-select
-            :model-value="session.sheetName"
-            :items="sheetNames"
-            label="Лист"
-            density="compact"
-            class="mb-1"
-            :disabled="!sheets.length"
-            hide-details
-            @update:model-value="onSheetChange"
-          />
-          <v-checkbox
-            v-model="useFirstRow"
-            label="Первая строка — имена столбцов"
-            density="compact"
-            hide-details
-            class="mb-4"
-            :disabled="!sheets.length"
-          />
-          <div class="text-subtitle-2 mb-2">
-            Документ
-          </div>
-          <input
-            ref="docxInput"
-            type="file"
-            accept=".docx"
-            class="d-none"
-            @change="onDocxPicked"
-          >
-          <div class="d-flex ga-2 mb-2">
+          <template v-if="!session.taskId">
+            <v-file-input
+              v-model="xlsx"
+              label="xlsx"
+              accept=".xlsx"
+              density="compact"
+              prepend-icon="mdi-table"
+              show-size
+              @update:model-value="onXlsxChange"
+            />
+            <v-select
+              :model-value="session.sheetName"
+              :items="sheetNames"
+              label="Лист"
+              density="compact"
+              class="mb-1"
+              :disabled="!sheets.length"
+              hide-details
+              @update:model-value="onSheetChange"
+            />
+            <v-checkbox
+              v-model="useFirstRow"
+              label="Первая строка — имена столбцов"
+              density="compact"
+              hide-details
+              class="mb-4"
+              :disabled="!sheets.length"
+            />
+            <div class="text-subtitle-2 mb-2">
+              Документ
+            </div>
+            <input
+              ref="docxInput"
+              type="file"
+              accept=".docx"
+              class="d-none"
+              @change="onDocxPicked"
+            >
+            <div class="d-flex flex-wrap ga-2 mb-2">
+              <v-btn
+                variant="outlined"
+                size="small"
+                prepend-icon="mdi-file-word"
+                @click="pickDocx"
+              >
+                Открыть
+              </v-btn>
+              <v-btn
+                variant="outlined"
+                size="small"
+                prepend-icon="mdi-file-plus"
+                @click="createBlankDocx"
+              >
+                Создать новый
+              </v-btn>
+            </div>
+            <div
+              v-if="docxLabel"
+              class="text-caption text-medium-emphasis mb-4"
+            >
+              {{ docxLabel }}
+            </div>
             <v-btn
-              variant="outlined"
-              size="small"
-              prepend-icon="mdi-file-word"
-              @click="pickDocx"
+              block
+              color="primary"
+              class="mb-4"
+              :loading="loading"
+              :disabled="!firstFile(xlsx) || (!docx && !newDoc)"
+              @click="onUpload"
             >
               Открыть
             </v-btn>
-            <v-btn
-              variant="outlined"
-              size="small"
-              prepend-icon="mdi-file-plus"
-              @click="createBlankDocx"
-            >
-              Создать новый
-            </v-btn>
-          </div>
-          <div
-            v-if="docxLabel"
-            class="text-caption text-medium-emphasis mb-4"
-          >
-            {{ docxLabel }}
-          </div>
+          </template>
           <v-btn
+            v-else
             block
-            color="primary"
+            variant="outlined"
             class="mb-4"
-            :loading="loading"
-            :disabled="!firstFile(xlsx) || (!docx && !newDoc)"
-            @click="onUpload"
+            prepend-icon="mdi-arrow-left"
+            @click="goBack"
           >
-            Открыть
+            Назад
           </v-btn>
           <ColumnSidebar
             :columns="session.columns"
@@ -432,7 +455,7 @@ async function downloadAllZip() {
         </v-card>
         <div
           v-if="session.taskId"
-          class="flex-grow-1 ml-6"
+          class="editor-pane flex-grow-1 mt-4 mt-md-0 ml-md-6"
         >
           <DocEditor
             :key="session.taskId"
@@ -448,8 +471,7 @@ async function downloadAllZip() {
       class="text-medium-emphasis flex-grow-0"
     >
       <v-container
-        class="py-6 mx-auto"
-        style="max-width: 960px"
+        class="footer-inner py-6 mx-auto"
       >
         <v-row>
           <v-col
@@ -493,8 +515,66 @@ async function downloadAllZip() {
   width: 100%;
   padding-inline: 24px;
 }
+.workspace {
+  min-height: calc(100% - 24px);
+}
+.form-card {
+  width: 100%;
+}
+.editor-pane {
+  width: 100%;
+  min-width: 0;
+}
+@media (min-width: 960px) {
+  .form-card--task {
+    width: 360px;
+    flex-shrink: 0;
+  }
+  .form-card--start {
+    width: 100%;
+    max-width: 360px;
+  }
+  .editor-pane {
+    width: auto;
+  }
+}
+@media (min-width: 1920px) {
+  .v-app-bar {
+    height: 72px !important;
+  }
+  .v-app-bar .v-toolbar__content {
+    height: 72px !important;
+    padding-inline: 40px;
+  }
+  .form-card {
+    padding: 32px !important;
+  }
+  .form-card--task {
+    width: 40%;
+    flex-shrink: 0;
+  }
+  .form-card--start {
+    width: 40%;
+    max-width: none;
+  }
+  .form-card .v-btn {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+  .form-card .v-chip {
+    height: 36px;
+    font-size: 0.95rem;
+  }
+  .footer-inner {
+    max-width: 1400px;
+    padding-block: 40px;
+  }
+}
 .v-application__wrap {
   min-height: 100%;
+}
+.footer-inner {
+  max-width: 960px;
 }
 .v-footer {
   position: relative;

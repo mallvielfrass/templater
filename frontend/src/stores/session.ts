@@ -79,5 +79,12 @@ export const useSessionStore = defineStore('session', {
     setDocHash(docHash: string) {
       this.docHash = docHash
     },
+    clearTask() {
+      this.taskId = ''
+      this.docHash = ''
+      this.sheets = []
+      this.columns = []
+      this.sheetName = ''
+    },
   },
 })

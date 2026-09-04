@@ -243,8 +243,20 @@ defineExpose({
 
 <style scoped>
 .editor-wrap {
-  height: calc(100vh - 120px);
-  min-height: 480px;
+  height: 60vh;
+  min-height: 360px;
+}
+@media (min-width: 960px) {
+  .editor-wrap {
+    height: calc(100vh - 120px);
+    min-height: 480px;
+  }
+}
+@media (min-width: 1920px) {
+  .editor-wrap {
+    height: calc(100vh - 160px);
+    min-height: 800px;
+  }
 }
 .editor-wrap :deep(.onlyoffice-editor),
 .editor-wrap :deep(iframe) {
