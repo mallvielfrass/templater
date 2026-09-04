@@ -251,7 +251,7 @@ func (root *Router) PluginConfig(w http.ResponseWriter, r *http.Request) {
 				"isViewer":       false,
 				"EditorsSupport": []string{"word"},
 				"isVisual":       false,
-				"isSystem":       false,
+				"isSystem":       true,
 				"initDataType":   "none",
 				"initData":       "",
 				"buttons":        []any{},

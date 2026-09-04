@@ -13,16 +13,18 @@
           return;
         }
         if (typeof window.Asc.plugin.executeMethod === 'function') {
-          window.Asc.plugin.executeMethod('PasteText', [text]);
-        } else if (typeof window.Asc.plugin.callCommand === 'function') {
+          window.Asc.plugin.executeMethod('InputText', [text]);
+          return;
+        }
+        if (typeof window.Asc.plugin.callCommand === 'function') {
           window.Asc.scope = window.Asc.scope || {};
           window.Asc.scope.textToPaste = text;
           window.Asc.plugin.callCommand(function() {
             var oDocument = Api.GetDocument();
-            var oParagraph = Api.CreateParagraph();
-            oParagraph.AddText(Asc.scope.textToPaste);
-            oDocument.InsertContent([oParagraph]);
-          }, true);
+            var oRun = Api.CreateRun();
+            oRun.AddText(Asc.scope.textToPaste);
+            oDocument.InsertContent([oRun], true);
+          }, false);
         }
       }
 

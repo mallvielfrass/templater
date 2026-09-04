@@ -6,6 +6,7 @@ import { fetchEditorConfig } from '../api'
 
 type Connector = {
   executeMethod: (name: string, args: unknown[]) => void
+  disconnect?: () => void
 }
 
 const props = defineProps<{
@@ -38,11 +39,27 @@ function editorInstances(): Record<string, { createConnector?: () => Connector; 
   return { ...(w.DocEditor?.instances ?? {}), ...(w.DocsAPI?.DocEditor?.instances ?? {}) }
 }
 
-function grabConnector() {
+function disconnectConnector() {
+  try {
+    connector.value?.disconnect?.()
+  } catch {}
+  connector.value = null
+}
+
+function withConnector(fn: (c: Connector) => void): boolean {
   const instances = editorInstances()
   const instance = instances[editorId] ?? Object.values(instances).find(Boolean)
-  if (instance?.createConnector) {
-    connector.value = instance.createConnector()
+  if (!instance?.createConnector) {
+    return false
+  }
+  disconnectConnector()
+  const c = instance.createConnector()
+  connector.value = c
+  try {
+    fn(c)
+    return true
+  } finally {
+    disconnectConnector()
   }
 }
 
@@ -72,28 +89,14 @@ function pasteText(text: string): boolean {
     pluginPort.postMessage({ action: 'insertText', text })
     return true
   }
-  if (!connector.value) {
-    grabConnector()
-  }
-  if (connector.value) {
-    connector.value.executeMethod('PasteText', [text])
+  if (withConnector((c) => {
+    c.executeMethod('InputText', [text])
+  })) {
     return true
-  }
-  for (const inst of Object.values(editorInstances())) {
-    if (inst?.createConnector) {
-      try {
-        inst.createConnector().executeMethod('PasteText', [text])
-        return true
-      } catch {}
-    }
-    if (typeof inst?.executeMethod === 'function') {
-      inst.executeMethod('PasteText', [text])
-      return true
-    }
   }
   const frameApi = findFrameApi(window)
   if (frameApi) {
-    frameApi.executeMethod('PasteText', [text])
+    frameApi.executeMethod('InputText', [text])
     return true
   }
   if (pluginReady.value) {
@@ -101,12 +104,6 @@ function pasteText(text: string): boolean {
     return true
   }
   return false
-}
-
-function onDocumentReady() {
-  grabConnector()
-  window.setTimeout(grabConnector, 500)
-  window.setTimeout(grabConnector, 2000)
 }
 
 function broadcastInsert(text: string) {
@@ -154,7 +151,7 @@ onMounted(() => {
 
 async function loadConfig() {
   error.value = ''
-  connector.value = null
+  disconnectConnector()
   pluginReady.value = false
   editorVisible.value = false
   if (pluginPort) {
@@ -195,7 +192,7 @@ onBeforeUnmount(() => {
     pluginPort = null
   }
   destroyEditor()
-  connector.value = null
+  disconnectConnector()
 })
 
 const ready = computed(() => Boolean(config.value) && editorVisible.value)
@@ -203,10 +200,10 @@ const ready = computed(() => Boolean(config.value) && editorVisible.value)
 defineExpose({
   async insertPlaceholder(name: string) {
     const text = '{' + name + '}'
-    try {
-      await navigator.clipboard.writeText(text)
-    } catch {}
     if (!pasteText(text)) {
+      try {
+        await navigator.clipboard.writeText(text)
+      } catch {}
       throw new Error('Скопировано ' + text + '. Кликни в документ и нажми Ctrl+V')
     }
   },
@@ -229,8 +226,6 @@ defineExpose({
       :document-server-url="documentServerUrl"
       :config="config"
       height="100%"
-      :events_onDocumentReady="onDocumentReady"
-      :events_onAppReady="onDocumentReady"
     />
     <div
       v-else-if="!error"
