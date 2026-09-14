@@ -1,0 +1,8 @@
+FROM selenium/standalone-chromium:4.27.0
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends libnss3-tools \
+    && rm -rf /var/lib/apt/lists/*
+COPY scripts/selenium-entrypoint.sh /opt/bin/selenium-with-ca.sh
+RUN chmod +x /opt/bin/selenium-with-ca.sh
+USER seluser
+ENTRYPOINT ["/opt/bin/selenium-with-ca.sh"]

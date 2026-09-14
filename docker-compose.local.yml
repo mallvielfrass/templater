@@ -1,25 +1,51 @@
 version: "3.7"
 services:
-  templater-backend:
-    build: .
-    image: templater-backend
+  nginx:
+    image: nginx:1.27-alpine
     ports:
-      - "3053:3053"
+      - "8088:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - templater-backend
+      - onlyoffice
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "templater.local:host-gateway"
+    networks:
+      templater-backend-network:
+        aliases:
+          - nginx
+
+  templater-backend:
+    build:
+      context: .
+      args:
+        VITE_ONLYOFFICE_URL: https://templater.local:8443/ds
+    image: templater-backend
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "templater.local:host-gateway"
     volumes:
       - templater-backend-data:/storage
     environment:
       HttpPort: "3053"
       BadgerDBPath: /storage/badger
       JWTSecret: dev-jwt-secret-change-me
-      PublicBaseURL: http://templater-backend:3053
+      PublicBaseURL: https://templater.local:8443
       OnlyOfficeJWTSecret: onlyoffice-dev-secret
       OnlyOfficeURL: http://onlyoffice
+      CORSOrigins: https://templater.local:8443
+      GO_ENV: development
+      StaticDir: /app/frontend/dist
     networks:
       templater-backend-network:
         aliases:
           - templater-backend
+    depends_on:
+      - onlyoffice
 
   onlyoffice:
     build:
@@ -27,19 +53,43 @@ services:
       dockerfile: Dockerfile.onlyoffice
     image: templater-onlyoffice
     container_name: templater-onlyoffice
-    ports:
-      - "8080:80"
     environment:
       JWT_ENABLED: "true"
       JWT_SECRET: onlyoffice-dev-secret
       JWT_HEADER: Authorization
+      ALLOW_PRIVATE_IP_ADDRESS: "true"
+      NODE_EXTRA_CA_CERTS: /certs/rootCA.pem
+      SSL_CERT_FILE: /certs/rootCA.pem
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "templater.local:host-gateway"
+    volumes:
+      - ./certs/rootCA.pem:/certs/rootCA.pem:ro
+      - ./scripts/onlyoffice-with-ca.sh:/onlyoffice-with-ca.sh:ro
+    entrypoint: ["/bin/bash", "/onlyoffice-with-ca.sh"]
     networks:
       templater-backend-network:
         aliases:
           - onlyoffice
           - documentserver
+
+  selenium:
+    build:
+      context: .
+      dockerfile: Dockerfile.selenium
+    ports:
+      - "4444:4444"
+    shm_size: "2gb"
+    extra_hosts:
+      - "templater.local:host-gateway"
+    volumes:
+      - ./certs/rootCA.pem:/certs/rootCA.pem:ro
+      - ./test.xlsx:/fixtures/test.xlsx:ro
+      - ./test.docx:/fixtures/test.docx:ro
+    depends_on:
+      - nginx
+    networks:
+      templater-backend-network:
 
 volumes:
   templater-backend-data:
