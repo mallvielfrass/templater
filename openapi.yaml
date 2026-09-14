@@ -1,0 +1,322 @@
+openapi: 3.0.3
+info:
+  title: Templater API
+  version: "1.0"
+  description: |
+    Генерация docx из Excel и шаблона. Анонимная сессия через POST /api/user.
+    Лимиты: загрузка до 100 МиБ, не больше 100 строк за один run_task.
+servers:
+  - url: /
+    description: same origin
+  - url: https://templater.local:8443
+    description: local HTTPS
+paths:
+  /ping:
+    get:
+      summary: Проверка живости
+      responses:
+        "200":
+          description: pong
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: pong
+  /api/user:
+    post:
+      summary: Создать временную сессию
+      responses:
+        "201":
+          description: JWT сессии
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user, jwt]
+                properties:
+                  user:
+                    type: string
+                    format: uuid
+                  jwt:
+                    type: string
+  /api/xlsx_info:
+    post:
+      summary: Метаданные xlsx без создания задачи
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [exel_file]
+              properties:
+                exel_file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Список листов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/XlsxInfo"
+        "400":
+          description: Файл не xlsx
+        "401":
+          description: Нет JWT
+  /api/create_task:
+    post:
+      summary: Создать задачу из xlsx и docx
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [exel_file]
+              properties:
+                exel_file:
+                  type: string
+                  format: binary
+                doc_file:
+                  type: string
+                  format: binary
+                  description: Если нет — создаётся пустой docx
+      responses:
+        "200":
+          description: Задача создана
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateTaskResponse"
+        "400":
+          description: Нет xlsx или форма больше 100 МиБ
+        "401":
+          description: Нет JWT
+  /api/columns:
+    get:
+      summary: Имена столбцов (первая строка листа)
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: "#/components/parameters/taskId"
+        - name: sheet
+          in: query
+          schema:
+            type: string
+        - name: sheet_name
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Столбцы
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  columns:
+                    type: array
+                    items:
+                      type: string
+                  sheet:
+                    type: string
+        "400":
+          description: Нет имени листа
+        "404":
+          description: Задача не найдена
+  /api/sheet_info:
+    get:
+      summary: Диапазон листа
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: "#/components/parameters/taskId"
+        - name: sheet_name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Информация о листе
+        "404":
+          description: Задача не найдена
+  /api/onlyoffice/config:
+    get:
+      summary: Конфиг редактора OnlyOffice
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: "#/components/parameters/taskId"
+      responses:
+        "200":
+          description: JWT-конфиг для Docs API
+        "404":
+          description: Задача не найдена
+  /api/run_task:
+    post:
+      summary: Сгенерировать docx по строкам Excel
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: "#/components/parameters/taskId"
+        - name: sheet_name
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: use_first_row_as_columns
+          in: query
+          required: true
+          schema:
+            type: boolean
+        - name: min_row
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: max_row
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Хеши сгенерированных файлов
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunTaskResponse"
+        "400":
+          description: Невалидный диапазон или больше 100 строк
+        "404":
+          description: Задача не найдена
+  /api/download_zip:
+    post:
+      summary: Скачать свои сгенерированные docx архивом
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hashes]
+              properties:
+                hashes:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: ZIP
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Пустой список hashes
+        "404":
+          description: Нет доступных файлов
+  /api/files/{hash}:
+    get:
+      summary: Скачать docx по хешу
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: token
+          in: query
+          schema:
+            type: string
+          description: Файловый JWT для OnlyOffice; иначе Bearer
+      responses:
+        "200":
+          description: docx
+          content:
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Нет доступа или файла нет
+  /api/onlyoffice/callback:
+    post:
+      summary: Callback сохранения OnlyOffice
+      responses:
+        "200":
+          description: Принято
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    taskId:
+      name: task_id
+      in: query
+      required: true
+      schema:
+        type: string
+  schemas:
+    XlsxInfo:
+      type: object
+      properties:
+        file_name:
+          type: string
+        sheets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sheet"
+    Sheet:
+      type: object
+      properties:
+        name:
+          type: string
+        start_column:
+          type: string
+        end_column:
+          type: string
+        start_row:
+          type: integer
+        end_row:
+          type: integer
+    FileInfo:
+      type: object
+      properties:
+        file_name:
+          type: string
+        size:
+          type: integer
+        sheets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sheet"
+    CreateTaskResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+        doc_hash:
+          type: string
+        exel_info:
+          $ref: "#/components/schemas/FileInfo"
+        doc_info:
+          $ref: "#/components/schemas/FileInfo"
+    RunTaskResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+        doc_hashes:
+          type: array
+          items:
+            type: string
+        total_docs:
+          type: integer

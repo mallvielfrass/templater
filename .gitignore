@@ -38,6 +38,9 @@ frontend/dist/
 *.docx
 package-lock.json
 *.xlsx
+!examples/*.xlsx
+!examples/*.docx
+!examples/*.webm
 certs/*
 !certs/.gitkeep
 e2e/__pycache__/
