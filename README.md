@@ -2,11 +2,11 @@
 
 Templater — сервис для автоматической генерации документов Word по шаблону и данным из Excel. Метки в шаблоне (`{фамилия}`, `{сумма}`) совпадают с названиями столбцов; на каждую строку таблицы получается отдельный файл.
 
-[![Демо](examples/demo.png)](examples/demo.webm)
+![Демо](examples/demo.png)
 
 ![Vue TypeScript Go Docker Nginx GitHub Actions Linux Git](https://skillicons.dev/icons?i=vue,ts,go,docker,nginx,githubactions,linux,git)
 
-<img alt="OnlyOffice" src="https://img.shields.io/badge/OnlyOffice-FF6F3D?style=for-the-badge&logo=onlyoffice&logoColor=white">&nbsp;&nbsp;&nbsp;&nbsp;<img alt="Excelize" src="https://img.shields.io/badge/Excelize-00ADD8?style=for-the-badge&logo=go&logoColor=white">&nbsp;&nbsp;&nbsp;&nbsp;<img alt="Vuetify" src="https://img.shields.io/badge/Vuetify-1867C0?style=for-the-badge&logo=vuetify&logoColor=white">&nbsp;&nbsp;&nbsp;&nbsp;<img alt="BadgerDB" src="https://img.shields.io/badge/BadgerDB-E6522C?style=for-the-badge&logo=dgraph&logoColor=white">
+![OnlyOffice](https://img.shields.io/badge/OnlyOffice-FF6F3D?style=for-the-badge&logo=onlyoffice&logoColor=white)    ![Excelize](https://img.shields.io/badge/Excelize-00ADD8?style=for-the-badge&logo=go&logoColor=white)    ![Vuetify](https://img.shields.io/badge/Vuetify-1867C0?style=for-the-badge&logo=vuetify&logoColor=white)    ![BadgerDB](https://img.shields.io/badge/BadgerDB-E6522C?style=for-the-badge&logo=dgraph&logoColor=white)
 
 [OpenAPI](openapi.yaml) · [Примеры](examples/) · [MIT](LICENSE)
 
@@ -22,6 +22,8 @@ Templater — сервис для автоматической генераци�
 Нужны Docker и [mkcert](https://github.com/FiloSottile/mkcert).
 
 ```bash
+git clone https://github.com/mallvielfrass/templater.git
+cd templater
 ./scripts/local-https.sh
 ./scripts/local-up.sh
 ```
@@ -37,7 +39,6 @@ Templater — сервис для автоматической генераци�
 | Файл                                                                               | Назначение                                                         |
 | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | [examples/invoice.csv](examples/invoice.csv)                                       | Счета: `number`, `client`, `item`, `qty`, `price`, `total`, `date` |
-| [examples/invoice.txt](examples/invoice.txt)                                       | Текстовый шаблон счёта                                             |
 | [examples/sample.xlsx](examples/sample.xlsx) / [sample.docx](examples/sample.docx) | Короткий демо-набор `site` / `name` / `year`                       |
 | [examples/demo.webm](examples/demo.webm)                                           | Запись сценария (~10 с)                                            |
 
@@ -47,8 +48,6 @@ Templater — сервис для автоматической генераци�
 ```bash
 go run examples/gen.go
 ```
-
-
 
 ## Архитектура
 
@@ -77,8 +76,6 @@ flowchart LR
 | `OnlyOfficeURL`       | Внутренний адрес Document Server                                 |
 | `CORSOrigins`         | Разрешённые origin                                               |
 | `GO_ENV`              | `production` запрещает дефолтные секреты                         |
-
-
 
 
 ## API
@@ -123,14 +120,17 @@ go test -bench=BenchmarkConvert -benchtime=3x ./internal/exdocConverter
 python3 -m pytest e2e/test_open.py
 ```
 
-E2E нужен поднятый `local-up` и Selenium Grid на `:4444`.  
-Бенчмарк: 10 / 100 / 1000 строк на конвертере (HTTP-лимит — 100 строк за запрос).
+E2E нужен поднятый `local-up` и Selenium Grid на `:4444`.
 
-## Деплой
+Конвертер, `-benchtime=3x`, Ryzen 7 PRO 4750G. HTTP API режет запрос до 100 строк.
 
-Push в `main`: `go test`, сборка образов в GHCR.  
-Выкладка: `workflow_dispatch` (тег `latest` или sha). На сервер уходят `docker-compose.yml`, `nginx/nginx.conf` и `.env`.
 
-## Лицензия
+| Строк | Время   | Память   |
+| ----- | ------- | -------- |
+| 10    | ~111 мс | ~24 МиБ  |
+| 100   | ~1.4 с  | ~237 МиБ |
+| 1000  | ~12.9 с | ~2.3 ГиБ |
 
-[MIT](LICENSE)
+
+
+
