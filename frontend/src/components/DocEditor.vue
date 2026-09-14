@@ -211,7 +211,10 @@ defineExpose({
 </script>
 
 <template>
-  <div class="editor-wrap">
+  <div
+    class="editor-wrap"
+    data-testid="doc-editor"
+  >
     <v-alert
       v-if="error"
       type="error"
@@ -238,20 +241,10 @@ defineExpose({
 
 <style scoped>
 .editor-wrap {
-  height: 60vh;
-  min-height: 360px;
-}
-@media (min-width: 960px) {
-  .editor-wrap {
-    height: calc(100vh - 120px);
-    min-height: 480px;
-  }
-}
-@media (min-width: 1920px) {
-  .editor-wrap {
-    height: calc(100vh - 160px);
-    min-height: 800px;
-  }
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 240px;
+  height: 100%;
 }
 .editor-wrap :deep(.onlyoffice-editor),
 .editor-wrap :deep(iframe) {

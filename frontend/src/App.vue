@@ -261,13 +261,16 @@ async function downloadAllZip() {
       <div class="d-flex align-center w-100">
         <span class="text-h6">templater</span>
         <v-spacer />
-        <span class="text-caption text-medium-emphasis">{{ session.user || 'нет сессии' }}</span>
+        <span
+          class="text-caption text-medium-emphasis"
+          data-testid="session-label"
+        >{{ session.user || 'нет сессии' }}</span>
       </div>
     </v-app-bar>
     <v-main>
       <div
         class="workspace d-flex flex-column flex-md-row pa-3 pa-md-6 pa-xl-8"
-        :class="session.taskId ? 'align-start' : 'align-center justify-center'"
+        :class="session.taskId ? 'workspace--task' : 'align-center justify-center'"
       >
         <v-card
           class="form-card pa-6"
@@ -292,6 +295,7 @@ async function downloadAllZip() {
               density="compact"
               prepend-icon="mdi-table"
               show-size
+              data-testid="xlsx-input"
               @update:model-value="onXlsxChange"
             />
             <v-select
@@ -320,6 +324,7 @@ async function downloadAllZip() {
               type="file"
               accept=".docx"
               class="d-none"
+              data-testid="docx-input"
               @change="onDocxPicked"
             >
             <div class="d-flex flex-wrap ga-2 mb-2">
@@ -327,6 +332,7 @@ async function downloadAllZip() {
                 variant="outlined"
                 size="small"
                 prepend-icon="mdi-file-word"
+                data-testid="pick-docx"
                 @click="pickDocx"
               >
                 Открыть
@@ -350,6 +356,7 @@ async function downloadAllZip() {
               block
               color="primary"
               class="mb-4"
+              data-testid="open-task"
               :loading="loading"
               :disabled="!firstFile(xlsx) || (!docx && !newDoc)"
               @click="onUpload"
@@ -467,6 +474,7 @@ async function downloadAllZip() {
       </div>
     </v-main>
     <v-footer
+      v-if="!session.taskId"
       border
       class="text-medium-emphasis flex-grow-0"
     >
@@ -513,19 +521,84 @@ async function downloadAllZip() {
 <style>
 .v-app-bar .v-toolbar__content {
   width: 100%;
-  padding-inline: 24px;
+  padding-inline: 16px;
+}
+[data-testid="session-label"] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 50%;
+}
+.v-main {
+  min-height: 0 !important;
 }
 .workspace {
   min-height: calc(100% - 24px);
+  max-width: 100%;
+  width: 100%;
+}
+.workspace--task {
+  min-height: calc(100dvh - var(--v-layout-top, 56px));
+  height: calc(100dvh - var(--v-layout-top, 56px));
+  box-sizing: border-box;
+  overflow: hidden;
+  align-items: stretch;
+}
+.form-card--task {
+  flex-shrink: 0;
+  align-self: start;
+  max-height: 100%;
+  overflow: auto;
 }
 .form-card {
   width: 100%;
+  max-width: 100%;
+}
+.form-card .v-btn {
+  min-height: 44px;
+}
+.form-card .v-chip {
+  min-height: 36px;
 }
 .editor-pane {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
+  min-height: 240px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 959.98px) {
+  .v-app-bar .v-toolbar__content {
+    padding-inline: 12px;
+  }
+  .form-card {
+    padding: 16px !important;
+  }
+}
+@media (max-width: 959.98px) and (min-aspect-ratio: 4/3) {
+  .workspace.workspace--task.flex-column {
+    flex-direction: row !important;
+    align-items: stretch;
+  }
+  .form-card--task {
+    width: min(320px, 38vw);
+    flex-shrink: 0;
+    align-self: stretch;
+    overflow: auto;
+    max-height: 100%;
+  }
+  .editor-pane {
+    margin-top: 0 !important;
+    margin-left: 12px !important;
+    min-height: 0;
+  }
 }
 @media (min-width: 960px) {
+  .v-app-bar .v-toolbar__content {
+    padding-inline: 24px;
+  }
   .form-card--task {
     width: 360px;
     flex-shrink: 0;
@@ -550,12 +623,12 @@ async function downloadAllZip() {
     padding: 32px !important;
   }
   .form-card--task {
-    width: 40%;
+    width: 420px;
     flex-shrink: 0;
   }
   .form-card--start {
-    width: 40%;
-    max-width: none;
+    width: 420px;
+    max-width: 420px;
   }
   .form-card .v-btn {
     min-height: 48px;
@@ -568,6 +641,42 @@ async function downloadAllZip() {
   .footer-inner {
     max-width: 1400px;
     padding-block: 40px;
+  }
+}
+@media (min-width: 2560px) {
+  .workspace {
+    max-width: 3200px;
+    margin-inline: auto;
+  }
+  .v-app-bar {
+    height: 88px !important;
+  }
+  .v-app-bar .v-toolbar__content {
+    height: 88px !important;
+    padding-inline: 48px;
+  }
+  .form-card {
+    padding: 40px !important;
+  }
+  .form-card--task {
+    width: 480px;
+    flex-shrink: 0;
+  }
+  .form-card--start {
+    width: 520px;
+    max-width: 520px;
+  }
+  .form-card .v-btn {
+    min-height: 56px;
+    font-size: 1.05rem;
+  }
+  .form-card .v-chip {
+    height: 44px;
+    font-size: 1rem;
+  }
+  .footer-inner {
+    max-width: 1800px;
+    padding-block: 48px;
   }
 }
 .v-application__wrap {
