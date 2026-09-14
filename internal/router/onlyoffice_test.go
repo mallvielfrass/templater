@@ -53,7 +53,7 @@ func TestOOCallbackUsesJWTURLNotBody(t *testing.T) {
 	claims := jwt.MapClaims{
 		"key":    "doc-key",
 		"status": float64(2),
-		"url":    "https://templater.jackodissea.ru/ds/cache/files/ok.docx",
+		"url":    "https://example.test/ds/cache/files/ok.docx",
 	}
 	token, err := signMapClaims("oo-secret", claims)
 	require.NoError(t, err)

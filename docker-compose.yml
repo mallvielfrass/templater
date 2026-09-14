@@ -49,7 +49,7 @@ services:
       ALLOW_PRIVATE_IP_ADDRESS: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-      - "${PUBLIC_HOST:-templater.jackodissea.ru}:host-gateway"
+      - "${PUBLIC_HOST}:host-gateway"
     networks:
       templater-backend-network:
         aliases:

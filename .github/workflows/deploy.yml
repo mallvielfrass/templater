@@ -3,6 +3,7 @@ name: deploy
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
     inputs:
       image_tag:
@@ -15,7 +16,18 @@ env:
   OO_IMAGE: ghcr.io/${{ github.repository_owner }}/templater-onlyoffice
 
 jobs:
+  test:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+
   build:
+    needs: test
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -61,12 +73,23 @@ jobs:
           JWTSecret: ${{ secrets.JWTSecret }}
           OnlyOfficeJWTSecret: ${{ secrets.OnlyOfficeJWTSecret }}
           PublicBaseURL: ${{ vars.PublicBaseURL || secrets.PublicBaseURL }}
+          PUBLIC_HOST: ${{ vars.PUBLIC_HOST || secrets.PUBLIC_HOST }}
           OnlyOfficeURL: ${{ vars.OnlyOfficeURL || secrets.OnlyOfficeURL }}
           CORSOrigins: ${{ vars.CORSOrigins || secrets.CORSOrigins }}
           HTTP_PORT: ${{ vars.HTTP_PORT || secrets.HTTP_PORT }}
         run: |
           if [ -z "$JWTSecret" ] || [ -z "$OnlyOfficeJWTSecret" ]; then
             echo "JWTSecret or OnlyOfficeJWTSecret is empty (check Repository secrets, not Environment)"
+            exit 1
+          fi
+          if [ -z "$PUBLIC_HOST" ]; then
+            PUBLIC_HOST="${PublicBaseURL#http://}"
+            PUBLIC_HOST="${PUBLIC_HOST#https://}"
+            PUBLIC_HOST="${PUBLIC_HOST%%/*}"
+            PUBLIC_HOST="${PUBLIC_HOST%%:*}"
+          fi
+          if [ -z "$PublicBaseURL" ] || [ -z "$PUBLIC_HOST" ]; then
+            echo "PublicBaseURL is empty (set vars/secrets PublicBaseURL or PUBLIC_HOST)"
             exit 1
           fi
           {
@@ -76,6 +99,7 @@ jobs:
             echo "JWTSecret=${JWTSecret}"
             echo "OnlyOfficeJWTSecret=${OnlyOfficeJWTSecret}"
             echo "PublicBaseURL=${PublicBaseURL}"
+            echo "PUBLIC_HOST=${PUBLIC_HOST}"
             echo "OnlyOfficeURL=${OnlyOfficeURL}"
             echo "CORSOrigins=${CORSOrigins}"
             echo "HTTP_PORT=${HTTP_PORT}"
